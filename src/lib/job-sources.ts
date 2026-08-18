@@ -70,6 +70,15 @@ function relativeDate(timestampMs: number | null): string {
   return `${Math.floor(days / 7)}w ago`;
 }
 
+function datePair(timestampMs: number | null): {
+  posted: string;
+  postedAt: number | null;
+} {
+  const valid =
+    timestampMs && !Number.isNaN(timestampMs) ? timestampMs : null;
+  return { posted: relativeDate(valid), postedAt: valid };
+}
+
 function matchScore(id: string, title: string, tags: string[]): number {
   const haystack = `${title} ${tags.join(" ")}`.toLowerCase();
   const hits = PROFILE_SKILLS.filter((skill) => haystack.includes(skill)).length;
@@ -170,7 +179,7 @@ async function fetchRemotive(): Promise<Normalized[]> {
     location: j.candidate_required_location || "Remote",
     salary: j.salary?.trim() || undefined,
     tags: (j.tags ?? []).slice(0, 4),
-    posted: relativeDate(
+    ...datePair(
       j.publication_date ? Date.parse(j.publication_date) : null
     ),
     description: stripHtml(j.description ?? ""),
@@ -210,7 +219,7 @@ async function fetchArbeitnow(): Promise<Normalized[]> {
       location: j.location ? `Remote — ${j.location}` : "Remote",
       salary: undefined,
       tags: (j.tags ?? []).slice(0, 4),
-      posted: relativeDate(j.created_at ? j.created_at * 1000 : null),
+      ...datePair(j.created_at ? j.created_at * 1000 : null),
       description: stripHtml(j.description ?? ""),
       source: "Arbeitnow",
       url: j.url,
@@ -247,7 +256,7 @@ async function fetchJobicy(): Promise<Normalized[]> {
         ? `$${Math.round(j.annualSalaryMin / 1000)}k – $${Math.round(j.annualSalaryMax / 1000)}k`
         : undefined,
     tags: (j.jobIndustry ?? []).map(decodeEntities).slice(0, 3),
-    posted: relativeDate(j.pubDate ? Date.parse(j.pubDate) : null),
+    ...datePair(j.pubDate ? Date.parse(j.pubDate) : null),
     description: stripHtml(j.jobDescription ?? j.jobExcerpt ?? ""),
     source: "Jobicy",
     url: j.url,
@@ -285,7 +294,7 @@ async function fetchRemoteOk(): Promise<Normalized[]> {
           ? `$${Math.round(j.salary_min / 1000)}k – $${Math.round(j.salary_max / 1000)}k`
           : undefined,
       tags: (j.tags ?? []).slice(0, 4),
-      posted: relativeDate(j.date ? Date.parse(j.date) : null),
+      ...datePair(j.date ? Date.parse(j.date) : null),
       description: stripHtml(j.description ?? ""),
       source: "Remote OK",
       url: j.url || `https://remoteok.com/remote-jobs/${j.slug ?? ""}`,
@@ -333,7 +342,7 @@ async function fetchWeWorkRemotely(): Promise<Normalized[]> {
           : `Remote — ${region}`,
         salary: undefined,
         tags: category ? [category] : [],
-        posted: relativeDate(pub ? Date.parse(pub) : null),
+        ...datePair(pub ? Date.parse(pub) : null),
         description: stripHtml(rssTag(item, "description") ?? ""),
         source: "We Work Remotely",
         url,
@@ -378,13 +387,152 @@ async function fetchHackerNews(): Promise<Normalized[]> {
         location: "Remote (see post)",
         salary: undefined,
         tags: ["Hacker News"],
-        posted: relativeDate(h.created_at ? Date.parse(h.created_at) : null),
+        ...datePair(h.created_at ? Date.parse(h.created_at) : null),
         description: stripHtml(h.comment_text ?? "", 800),
         source: "HN Who's Hiring",
         url: `https://news.ycombinator.com/item?id=${h.objectID}`,
         logoUrl: undefined,
       };
     });
+}
+
+const FRESH_CUTOFF_MS = 31 * 86_400_000;
+
+type HimalayasJob = {
+  title: string;
+  excerpt?: string;
+  description?: string;
+  companyName: string;
+  companyLogo?: string;
+  minSalary?: number;
+  maxSalary?: number;
+  currency?: string;
+  locationRestrictions?: string[];
+  parentCategories?: string[];
+  categories?: string[];
+  pubDate?: number;
+  applicationLink?: string;
+};
+
+const HIMALAYAS_MAX = 5000;
+
+async function fetchHimalayas(): Promise<Normalized[]> {
+  const cutoff = Date.now() - FRESH_CUTOFF_MS;
+  const out: Normalized[] = [];
+  let offset = 0;
+  // Paced pagination: the API soft-throttles rapid requests down to 20/response
+  for (let request = 0; request < 150 && out.length < HIMALAYAS_MAX; request++) {
+    const data = (await getJson(
+      `https://himalayas.app/jobs/api?limit=100&offset=${offset}`
+    )) as { jobs?: HimalayasJob[] };
+    const jobs = data.jobs ?? [];
+    if (jobs.length === 0) break;
+    offset += jobs.length;
+    for (const j of jobs) {
+      const ms = j.pubDate ? j.pubDate * 1000 : null;
+      out.push({
+        id: `himalayas-${j.applicationLink?.split("/").pop() ?? `${offset}-${out.length}`}`,
+        title: j.title,
+        company: j.companyName,
+        location: j.locationRestrictions?.length
+          ? `Remote — ${j.locationRestrictions.slice(0, 2).join(", ")}`
+          : "Remote — Worldwide",
+        salary:
+          j.minSalary && j.maxSalary && j.currency === "USD"
+            ? `$${Math.round(j.minSalary / 1000)}k – $${Math.round(j.maxSalary / 1000)}k`
+            : undefined,
+        tags: (j.parentCategories?.length
+          ? j.parentCategories
+          : (j.categories ?? [])
+        ).slice(0, 3),
+        ...datePair(ms),
+        description: stripHtml(j.description ?? j.excerpt ?? ""),
+        source: "Himalayas",
+        url: j.applicationLink ?? "https://himalayas.app/jobs",
+        logoUrl: j.companyLogo || undefined,
+      });
+    }
+    const last = jobs[jobs.length - 1];
+    if (last.pubDate && last.pubDate * 1000 < cutoff) break;
+    await new Promise((resolve) => setTimeout(resolve, 800));
+  }
+  return out;
+}
+
+type WorkingNomadsJob = {
+  url: string;
+  title: string;
+  description?: string;
+  company_name?: string;
+  category_name?: string;
+  tags?: string | string[];
+  location?: string;
+  pub_date?: string;
+};
+
+async function fetchWorkingNomads(): Promise<Normalized[]> {
+  const data = (await getJson(
+    "https://www.workingnomads.com/api/exposed_jobs/"
+  )) as WorkingNomadsJob[];
+  return data.map((j, i) => ({
+    id: `workingnomads-${j.url.split("/").filter(Boolean).pop() ?? i}`,
+    title: j.title,
+    company: j.company_name ?? "Working Nomads",
+    location: j.location ? `Remote — ${j.location}` : "Remote",
+    salary: undefined,
+    tags: (typeof j.tags === "string"
+      ? j.tags.split(",").map((t) => t.trim())
+      : (j.tags ?? [])
+    )
+      .filter(Boolean)
+      .slice(0, 4),
+    ...datePair(j.pub_date ? Date.parse(j.pub_date) : null),
+    description: stripHtml(j.description ?? ""),
+    source: "Working Nomads",
+    url: j.url,
+    logoUrl: undefined,
+  }));
+}
+
+type MuseJob = {
+  id: number;
+  name: string;
+  publication_date?: string;
+  contents?: string;
+  categories?: { name?: string }[];
+  levels?: { name?: string }[];
+  refs?: { landing_page?: string };
+  company?: { name?: string };
+};
+
+async function fetchTheMuse(): Promise<Normalized[]> {
+  const pages = await Promise.all(
+    Array.from({ length: 20 }, (_, i) =>
+      getJson(
+        `https://www.themuse.com/api/public/jobs?location=Flexible%20%2F%20Remote&page=${i + 1}`
+      ).catch(() => ({}))
+    )
+  );
+  return pages
+    .flatMap((p) => (p as { results?: MuseJob[] }).results ?? [])
+    .map((j) => ({
+      id: `muse-${j.id}`,
+      title: j.name,
+      company: j.company?.name ?? "The Muse",
+      location: "Remote — Flexible",
+      salary: undefined,
+      tags: (j.categories ?? [])
+        .map((c) => c.name)
+        .filter((n): n is string => Boolean(n))
+        .slice(0, 3),
+      ...datePair(
+        j.publication_date ? Date.parse(j.publication_date) : null
+      ),
+      description: stripHtml(j.contents ?? ""),
+      source: "The Muse",
+      url: j.refs?.landing_page ?? "https://www.themuse.com/search",
+      logoUrl: undefined,
+    }));
 }
 
 // ---------- mass ATS harvesting (boards discovered by scripts/discover-boards.mjs) ----------
@@ -414,7 +562,7 @@ async function fetchGreenhouseBoard(board: {
       location: j.location?.name ?? "Remote",
       salary: undefined,
       tags: [],
-      posted: relativeDate(
+      ...datePair(
         j.first_published
           ? Date.parse(j.first_published)
           : j.updated_at
@@ -458,7 +606,7 @@ async function fetchAshbyBoard(board: { slug: string }): Promise<Normalized[]> {
         .filter((t): t is string => Boolean(t))
         .filter((t, i, arr) => arr.indexOf(t) === i)
         .slice(0, 2),
-      posted: relativeDate(j.publishedAt ? Date.parse(j.publishedAt) : null),
+      ...datePair(j.publishedAt ? Date.parse(j.publishedAt) : null),
       description: stripHtml(j.descriptionHtml ?? ""),
       source: "Ashby",
       url: j.jobUrl ?? `https://jobs.ashbyhq.com/${board.slug}`,
@@ -512,7 +660,7 @@ async function fetchWorkableBoard(board: {
         : "Remote",
       salary: undefined,
       tags: (j.department ?? []).slice(0, 2),
-      posted: relativeDate(j.published ? Date.parse(j.published) : null),
+      ...datePair(j.published ? Date.parse(j.published) : null),
       description: "",
       source: "Workable",
       url: `https://apply.workable.com/${board.slug}/j/${j.shortcode ?? ""}`,
@@ -549,7 +697,7 @@ async function fetchLeverBoard(board: { slug: string }): Promise<Normalized[]> {
       tags: [j.categories?.team, j.categories?.commitment].filter(
         (t): t is string => Boolean(t)
       ),
-      posted: relativeDate(j.createdAt ?? null),
+      ...datePair(j.createdAt ?? null),
       description: stripHtml(j.descriptionPlain ?? ""),
       source: "Lever",
       url: j.hostedUrl,
@@ -586,7 +734,7 @@ async function fetchSmartRecruitersBoard(board: {
       tags: [j.function?.label, j.experienceLevel?.label].filter(
         (t): t is string => Boolean(t)
       ),
-      posted: relativeDate(
+      ...datePair(
         j.releasedDate ? Date.parse(j.releasedDate) : null
       ),
       description: "",
@@ -603,7 +751,7 @@ export type Harvest = {
   sources: Record<string, number>;
 };
 
-const MAX_JOBS = 8000;
+const MAX_JOBS = 12000;
 
 export async function harvestAll(): Promise<Harvest> {
   const feeds = {
@@ -613,6 +761,9 @@ export async function harvestAll(): Promise<Harvest> {
     remoteok: fetchRemoteOk,
     weworkremotely: fetchWeWorkRemotely,
     hackernews: fetchHackerNews,
+    himalayas: fetchHimalayas,
+    workingnomads: fetchWorkingNomads,
+    themuse: fetchTheMuse,
   };
   const feedNames = Object.keys(feeds) as (keyof typeof feeds)[];
 
@@ -643,9 +794,12 @@ export async function harvestAll(): Promise<Harvest> {
   sources.lever = lever.length;
   all.push(...greenhouse, ...ashby, ...smartrecruiters, ...workable, ...lever);
 
+  const freshCutoff = Date.now() - FRESH_CUTOFF_MS;
   const seen = new Set<string>();
   const jobs: Job[] = [];
   for (const job of all) {
+    // max one month old; keep the rare job with no parseable date
+    if (job.postedAt !== null && job.postedAt < freshCutoff) continue;
     const key = `${job.company.toLowerCase()}|${job.title.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);

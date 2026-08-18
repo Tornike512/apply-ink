@@ -7,6 +7,7 @@ export type Job = {
   match: number;
   tags: string[];
   posted: string;
+  postedAt: number | null;
   description: string;
   logoColor: string;
   verified: boolean;
@@ -21,6 +22,7 @@ export const JOBS: Job[] = [
     logoColor: "#e6602c",
     verified: true,
     source: "Sample",
+    postedAt: null,
     url: "#",
     title: "Senior Frontend Engineer",
     company: "Driftwood Labs",
@@ -37,6 +39,7 @@ export const JOBS: Job[] = [
     logoColor: "#1f2a56",
     verified: true,
     source: "Sample",
+    postedAt: null,
     url: "#",
     title: "Full-Stack Developer",
     company: "Terracotta AI",
@@ -53,6 +56,7 @@ export const JOBS: Job[] = [
     logoColor: "#7c5ce0",
     verified: true,
     source: "Sample",
+    postedAt: null,
     url: "#",
     title: "Product Engineer",
     company: "Inkwell",
@@ -69,6 +73,7 @@ export const JOBS: Job[] = [
     logoColor: "#c2452f",
     verified: true,
     source: "Sample",
+    postedAt: null,
     url: "#",
     title: "React Native Engineer",
     company: "Sienna Health",
@@ -85,6 +90,7 @@ export const JOBS: Job[] = [
     logoColor: "#0f766e",
     verified: true,
     source: "Sample",
+    postedAt: null,
     url: "#",
     title: "Design Systems Engineer",
     company: "Parchment Co.",
@@ -101,6 +107,7 @@ export const JOBS: Job[] = [
     logoColor: "#3e8e41",
     verified: true,
     source: "Sample",
+    postedAt: null,
     url: "#",
     title: "Backend Engineer, Platform",
     company: "Emberline",
