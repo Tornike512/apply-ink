@@ -43,6 +43,7 @@ export function useAutoApply(jobs: Job[]) {
   const [status, setStatus] = useState<AutoApplyStatus>("idle");
   const [log, setLog] = useState<ActivityEntry[]>([]);
   const [usedToday, setUsedToday] = useState(0);
+  const [currentJob, setCurrentJob] = useState<Job | null>(null);
 
   const queueRef = useRef<Job[]>([]);
   const indexRef = useRef(0);
@@ -60,10 +61,14 @@ export function useAutoApply(jobs: Job[]) {
     queueRef.current = [...jobs];
     indexRef.current = 0;
     setLog([]);
+    setCurrentJob(jobs[0] ?? null);
     setStatus("running");
   }, [jobs]);
 
-  const stop = useCallback(() => setStatus("stopped"), []);
+  const stop = useCallback(() => {
+    setCurrentJob(null);
+    setStatus("stopped");
+  }, []);
 
   useEffect(() => {
     if (status !== "running") return;
@@ -79,16 +84,19 @@ export function useAutoApply(jobs: Job[]) {
           },
           ...entries,
         ]);
+        setCurrentJob(null);
         setStatus("limit-reached");
         return;
       }
 
       const job = queueRef.current[indexRef.current];
       if (!job) {
+        setCurrentJob(null);
         setStatus("done");
         return;
       }
       indexRef.current += 1;
+      setCurrentJob(queueRef.current[indexRef.current] ?? null);
 
       const decision = decideJob(job, appliedIdsRef.current.has(job.id));
       if (decision.status === "applied") {
@@ -118,6 +126,7 @@ export function useAutoApply(jobs: Job[]) {
     status,
     log,
     usedToday,
+    currentJob,
     start,
     stop,
     minMatch: AUTO_APPLY_RULES.minMatch,
