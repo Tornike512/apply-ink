@@ -16,15 +16,20 @@ import { JobCard } from "@/components/job-card";
 import { JobDetailsPanel } from "@/components/job-details-panel";
 import { JobFilters } from "@/components/job-filters";
 import { Sidebar } from "@/components/sidebar";
+import { Spinner } from "@/components/spinner";
 import { StatCard } from "@/components/stat-card";
 import { useAutoApply } from "@/hooks/use-auto-apply";
+import { useGetJobs } from "@/hooks/use-get-jobs";
 import { JOBS, type Job } from "@/lib/jobs";
 
 export default function DashboardPage() {
   const [activeNav, setActiveNav] = useState("Jobs");
   const [search, setSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const autoApply = useAutoApply(JOBS);
+  const jobsQuery = useGetJobs();
+  const allJobs = jobsQuery.data?.jobs ?? (jobsQuery.isError ? JOBS : []);
+  const loadingJobs = jobsQuery.isPending;
+  const autoApply = useAutoApply(allJobs);
 
   const appliedCount = autoApply.log.filter(
     (entry) => entry.status === "applied"
@@ -34,12 +39,12 @@ export default function DashboardPage() {
   ).length;
 
   const query = search.trim().toLowerCase();
-  const jobs = JOBS.filter(
+  const jobs = allJobs.filter(
     (job) =>
       job.title.toLowerCase().includes(query) ||
       job.company.toLowerCase().includes(query)
   );
-  const highMatches = JOBS.filter(
+  const highMatches = allJobs.filter(
     (job) => job.match >= autoApply.minMatch
   ).length;
 
@@ -68,7 +73,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
             <StatCard
               icon={<BriefcaseIcon width={20} height={20} />}
-              value="128"
+              value={loadingJobs ? "…" : allJobs.length}
               label="Jobs found"
             />
             <StatCard
@@ -112,15 +117,32 @@ export default function DashboardPage() {
             minMatch={autoApply.minMatch}
             appliedCount={appliedCount}
             processedCount={processedCount}
-            totalCount={JOBS.length}
+            totalCount={allJobs.length}
             onStart={autoApply.start}
             onStop={autoApply.stop}
             onResetUsage={autoApply.resetUsage}
+            startDisabled={loadingJobs || allJobs.length === 0}
           />
 
           <JobFilters search={search} onSearchChange={setSearch} />
 
           <div className="flex flex-col gap-3 pb-2">
+            {loadingJobs && (
+              <Container
+                variant="card"
+                className="flex items-center justify-center gap-3 p-6"
+              >
+                <Spinner />
+                <p className="text-sm text-espresso/70">
+                  Loading remote jobs from live sources…
+                </p>
+              </Container>
+            )}
+            {jobsQuery.isError && (
+              <p className="text-xs text-espresso/60">
+                Live sources unavailable — showing sample jobs.
+              </p>
+            )}
             {jobs.map((job) => (
               <JobCard
                 key={job.id}
@@ -129,7 +151,7 @@ export default function DashboardPage() {
                 onSelect={() => setSelectedJob(job)}
               />
             ))}
-            {jobs.length === 0 && (
+            {!loadingJobs && jobs.length === 0 && (
               <Container variant="card" className="p-6 text-center">
                 <p className="text-sm text-espresso/70">
                   No jobs match “{search}”. Try a different search.
@@ -154,7 +176,7 @@ export default function DashboardPage() {
         currentJob={autoApply.currentJob}
         appliedCount={appliedCount}
         processedCount={processedCount}
-        totalCount={JOBS.length}
+        totalCount={allJobs.length}
         usedToday={autoApply.usedToday}
         dailyLimit={autoApply.dailyLimit}
         onStop={autoApply.stop}

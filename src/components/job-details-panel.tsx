@@ -39,7 +39,9 @@ export function JobDetailsPanel({ job, onClose }: JobDetailsPanelProps) {
       </div>
 
       <div className="flex items-baseline justify-between gap-3 rounded-xl bg-sand/40 px-4 py-3">
-        <span className="text-sm font-semibold text-espresso">{job.salary}</span>
+        <span className="text-sm font-semibold text-espresso">
+          {job.salary ?? "Salary not listed"}
+        </span>
         <span className="text-xs text-espresso/60">Posted {job.posted}</span>
       </div>
 
@@ -48,6 +50,16 @@ export function JobDetailsPanel({ job, onClose }: JobDetailsPanelProps) {
           About the role
         </h3>
         <p className="text-sm leading-6 text-espresso/80">{job.description}</p>
+        {job.url !== "#" && (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-block text-sm font-medium text-terracotta underline underline-offset-2 hover:text-sienna"
+          >
+            View posting on {job.source}
+          </a>
+        )}
       </div>
 
       <Button variant="primary" className="w-full py-3 text-base">

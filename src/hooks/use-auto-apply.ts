@@ -57,6 +57,7 @@ export function useAutoApply(jobs: Job[]) {
   }, []);
 
   const start = useCallback(() => {
+    if (jobs.length === 0) return;
     if (usedRef.current >= AUTO_APPLY_RULES.dailyLimit) return;
     queueRef.current = [...jobs];
     indexRef.current = 0;

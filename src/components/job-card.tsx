@@ -34,7 +34,11 @@ export function JobCard({ job, selected = false, onSelect }: JobCardProps) {
         interactive ? "cursor-pointer hover:border-terracotta" : ""
       } ${selected ? "border-terracotta ring-1 ring-terracotta" : ""}`}
     >
-      <CompanyAvatar name={job.company} color={job.logoColor} />
+      <CompanyAvatar
+        name={job.company}
+        color={job.logoColor}
+        logoUrl={job.logoUrl}
+      />
       <div className="min-w-0 flex-1 basis-56">
         <h3 className="flex items-center gap-1.5 text-base font-semibold text-espresso">
           <span className="truncate">{job.title}</span>
@@ -59,7 +63,11 @@ export function JobCard({ job, selected = false, onSelect }: JobCardProps) {
       </div>
       <MatchRing percent={job.match} className="shrink-0" />
       <div className="flex shrink-0 flex-col items-end gap-0.5">
-        <span className="text-base font-bold text-espresso">{job.salary}</span>
+        {job.salary && (
+          <span className="text-base font-bold text-espresso">
+            {job.salary}
+          </span>
+        )}
         <span className="text-xs text-espresso/55">{job.posted}</span>
       </div>
       <div className="flex shrink-0 items-center gap-1 text-espresso/60">

@@ -23,6 +23,7 @@ type AutoApplyPanelProps = {
   onStart: () => void;
   onStop: () => void;
   onResetUsage: () => void;
+  startDisabled?: boolean;
 };
 
 export function AutoApplyPanel({
@@ -36,6 +37,7 @@ export function AutoApplyPanel({
   onStart,
   onStop,
   onResetUsage,
+  startDisabled = false,
 }: AutoApplyPanelProps) {
   const [confirming, setConfirming] = useState(false);
   const running = status === "running";
@@ -120,7 +122,7 @@ export function AutoApplyPanel({
           <Button
             variant="primary"
             onClick={() => setConfirming(true)}
-            disabled={atLimit}
+            disabled={atLimit || startDisabled}
             className="rounded-xl py-3 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PlayIcon width={18} height={18} />
