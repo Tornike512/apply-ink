@@ -3,13 +3,16 @@ export type Job = {
   title: string;
   company: string;
   location: string;
-  salary: string;
+  salary?: string;
   match: number;
   tags: string[];
   posted: string;
   description: string;
   logoColor: string;
   verified: boolean;
+  source: string;
+  url: string;
+  logoUrl?: string;
 };
 
 export const JOBS: Job[] = [
@@ -17,6 +20,8 @@ export const JOBS: Job[] = [
     id: "1",
     logoColor: "#e6602c",
     verified: true,
+    source: "Sample",
+    url: "#",
     title: "Senior Frontend Engineer",
     company: "Driftwood Labs",
     location: "Remote — Worldwide",
@@ -31,6 +36,8 @@ export const JOBS: Job[] = [
     id: "2",
     logoColor: "#1f2a56",
     verified: true,
+    source: "Sample",
+    url: "#",
     title: "Full-Stack Developer",
     company: "Terracotta AI",
     location: "Remote — Europe",
@@ -45,6 +52,8 @@ export const JOBS: Job[] = [
     id: "3",
     logoColor: "#7c5ce0",
     verified: true,
+    source: "Sample",
+    url: "#",
     title: "Product Engineer",
     company: "Inkwell",
     location: "Remote — US timezones",
@@ -59,6 +68,8 @@ export const JOBS: Job[] = [
     id: "4",
     logoColor: "#c2452f",
     verified: true,
+    source: "Sample",
+    url: "#",
     title: "React Native Engineer",
     company: "Sienna Health",
     location: "Remote — Worldwide",
@@ -73,6 +84,8 @@ export const JOBS: Job[] = [
     id: "5",
     logoColor: "#0f766e",
     verified: true,
+    source: "Sample",
+    url: "#",
     title: "Design Systems Engineer",
     company: "Parchment Co.",
     location: "Remote — Europe",
@@ -87,6 +100,8 @@ export const JOBS: Job[] = [
     id: "6",
     logoColor: "#3e8e41",
     verified: true,
+    source: "Sample",
+    url: "#",
     title: "Backend Engineer, Platform",
     company: "Emberline",
     location: "Remote — Worldwide",

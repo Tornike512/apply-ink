@@ -38,8 +38,8 @@ export function decideJob(
       note: `Match ${job.match}% is below your ${AUTO_APPLY_RULES.minMatch}% rule`,
     };
   }
-  // Simulated failure so the error path is visible with mock data
-  if (job.id === "3") {
+  // Simulated failure so the error path stays visible with any data set
+  if (job.id.endsWith("3")) {
     return { status: "error", note: "Application portal timed out" };
   }
   return {
