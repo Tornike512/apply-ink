@@ -74,6 +74,7 @@ export function AutoApplyOverlay({
             alt=""
             fill
             sizes="176px"
+            unoptimized
             className={`object-cover transition-opacity duration-300 ${
               i === phaseIndex ? "opacity-100" : "opacity-0"
             }`}
