@@ -1,4 +1,11 @@
 import { useState } from "react";
+import {
+  CalendarIcon,
+  FileTextIcon,
+  PlaneIcon,
+  PlayIcon,
+  TargetIcon,
+} from "@/assets";
 import { Button } from "@/components/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Container } from "@/components/container";
@@ -44,21 +51,58 @@ export function AutoApplyPanel({
           : `${usedToday}/${dailyLimit} applications used today`;
 
   return (
-    <Container
-      variant="card"
-      className="flex flex-col items-center gap-3 p-6 text-center"
-    >
-      <h2 className="text-xl font-semibold text-espresso">Auto-apply</h2>
-      <p className="max-w-md text-sm text-espresso/70">
-        Applies to matching jobs in the background using your saved rules:
-        ≥{minMatch}% match · max {dailyLimit} per day.
-      </p>
+    <Container variant="card" className="flex flex-col gap-4 p-6">
+      <div className="relative flex items-start justify-between">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sand/50 text-espresso">
+          <FileTextIcon width={24} height={24} />
+        </span>
+        <svg
+          viewBox="0 0 100 40"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          className="absolute inset-x-16 top-2 h-10 text-terracotta/60"
+        >
+          <path
+            d="M0 30 C 30 -5, 70 45, 100 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeDasharray="1 7"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sand text-sienna">
+          <PlaneIcon width={22} height={22} />
+        </span>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-bold text-espresso">Auto-apply</h2>
+        <p className="mt-1 max-w-md text-sm leading-6 text-espresso/70">
+          Applies to matching jobs in the background using your saved rules.
+        </p>
+      </div>
+
+      <hr className="border-sand/70" />
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium text-espresso">
+        <span className="flex items-center gap-2">
+          <TargetIcon width={18} height={18} className="text-sienna" />
+          ≥{minMatch}% match
+        </span>
+        <span aria-hidden="true" className="h-5 w-px bg-sand" />
+        <span className="flex items-center gap-2">
+          <CalendarIcon width={18} height={18} className="text-sienna" />
+          max {dailyLimit} per day
+        </span>
+      </div>
 
       {running ? (
         <Button
           variant="primary"
           onClick={onStop}
-          className="w-full max-w-xs px-10 py-4 text-lg"
+          className="w-full rounded-xl py-3.5 text-base"
         >
           Stop auto-apply
         </Button>
@@ -67,13 +111,21 @@ export function AutoApplyPanel({
           variant="primary"
           onClick={() => setConfirming(true)}
           disabled={atLimit}
-          className="w-full max-w-xs px-10 py-4 text-lg disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl py-3.5 text-base disabled:cursor-not-allowed disabled:opacity-50"
         >
+          <PlayIcon width={20} height={20} />
           Auto-apply to matching jobs
         </Button>
       )}
 
-      <p aria-live="polite" className="text-sm text-espresso/60">
+      <p
+        aria-live="polite"
+        className="flex items-center gap-2 text-sm text-espresso/60"
+      >
+        <span
+          aria-hidden="true"
+          className="h-2 w-2 shrink-0 rounded-full bg-terracotta"
+        />
         {statusLine}
       </p>
 
@@ -81,7 +133,7 @@ export function AutoApplyPanel({
         <Button
           variant="secondary"
           onClick={onResetUsage}
-          className="px-3 py-1.5 text-xs"
+          className="self-start px-3 py-1.5 text-xs"
         >
           Reset daily limit (testing)
         </Button>
