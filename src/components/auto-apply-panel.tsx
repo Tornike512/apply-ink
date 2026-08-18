@@ -14,6 +14,7 @@ type AutoApplyPanelProps = {
   totalCount: number;
   onStart: () => void;
   onStop: () => void;
+  onResetUsage: () => void;
 };
 
 export function AutoApplyPanel({
@@ -26,6 +27,7 @@ export function AutoApplyPanel({
   totalCount,
   onStart,
   onStop,
+  onResetUsage,
 }: AutoApplyPanelProps) {
   const [confirming, setConfirming] = useState(false);
   const running = status === "running";
@@ -74,6 +76,16 @@ export function AutoApplyPanel({
       <p aria-live="polite" className="text-sm text-espresso/60">
         {statusLine}
       </p>
+
+      {atLimit && !running && (
+        <Button
+          variant="secondary"
+          onClick={onResetUsage}
+          className="px-3 py-1.5 text-xs"
+        >
+          Reset daily limit (testing)
+        </Button>
+      )}
 
       <ConfirmDialog
         open={confirming}

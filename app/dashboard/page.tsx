@@ -59,6 +59,7 @@ export default function DashboardPage() {
             totalCount={JOBS.length}
             onStart={autoApply.start}
             onStop={autoApply.stop}
+            onResetUsage={autoApply.resetUsage}
           />
 
           <JobFilters search={search} onSearchChange={setSearch} />

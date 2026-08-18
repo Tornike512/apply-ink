@@ -70,6 +70,14 @@ export function useAutoApply(jobs: Job[]) {
     setStatus("stopped");
   }, []);
 
+  const resetUsage = useCallback(() => {
+    usedRef.current = 0;
+    setUsedToday(0);
+    writeUsedToday(0);
+    appliedIdsRef.current.clear();
+    setStatus("idle");
+  }, []);
+
   useEffect(() => {
     if (status !== "running") return;
     const timer = setInterval(() => {
@@ -129,6 +137,7 @@ export function useAutoApply(jobs: Job[]) {
     currentJob,
     start,
     stop,
+    resetUsage,
     minMatch: AUTO_APPLY_RULES.minMatch,
     dailyLimit: AUTO_APPLY_RULES.dailyLimit,
   };
