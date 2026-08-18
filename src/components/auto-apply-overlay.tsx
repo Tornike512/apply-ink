@@ -1,9 +1,17 @@
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/button";
 import { Spinner } from "@/components/spinner";
 import type { Job } from "@/lib/jobs";
 
 const PHASE_INTERVAL_MS = 550;
+
+const PHASE_IMAGES = [
+  "/loader/checking.png",
+  "/loader/reading.png",
+  "/loader/rewriting.png",
+  "/loader/submitting.png",
+];
 
 function jobPhases(company: string): string[] {
   return [
@@ -57,12 +65,26 @@ export function AutoApplyOverlay({
       aria-label="Auto-apply in progress"
       className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-cream/95 p-6 backdrop-blur-sm"
     >
-      <Spinner size="lg" />
+      <div className="relative h-44 w-44 overflow-hidden rounded-2xl">
+        {PHASE_IMAGES.map((src, i) => (
+          <Image
+            key={src}
+            src={src}
+            alt=""
+            fill
+            sizes="176px"
+            className={`object-cover transition-opacity duration-300 ${
+              i === phaseIndex ? "opacity-100" : "opacity-0"
+            }`}
+          />
+        ))}
+      </div>
       <div className="flex flex-col items-center gap-2 text-center">
         <p
           aria-live="polite"
-          className="text-xl font-semibold text-espresso"
+          className="flex items-center gap-3 text-xl font-semibold text-espresso"
         >
+          <Spinner />
           {phases[phaseIndex]}
         </p>
         {currentJob && (
