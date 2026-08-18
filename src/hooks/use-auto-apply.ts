@@ -39,11 +39,13 @@ function timestamp(): string {
   });
 }
 
-export function useAutoApply(jobs: Job[]) {
+export function useAutoApply(jobs: Job[], onApplied?: (job: Job) => void) {
   const [status, setStatus] = useState<AutoApplyStatus>("idle");
   const [log, setLog] = useState<ActivityEntry[]>([]);
   const [usedToday, setUsedToday] = useState(0);
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
+  const onAppliedRef = useRef(onApplied);
+  onAppliedRef.current = onApplied;
 
   const queueRef = useRef<Job[]>([]);
   const indexRef = useRef(0);
@@ -113,6 +115,7 @@ export function useAutoApply(jobs: Job[]) {
         usedRef.current += 1;
         setUsedToday(usedRef.current);
         writeUsedToday(usedRef.current);
+        onAppliedRef.current?.(job);
       }
 
       setLog((entries) => [

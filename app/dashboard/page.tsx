@@ -9,6 +9,7 @@ import {
   TargetIcon,
   ZapIcon,
 } from "@/assets";
+import { ApplicationsList } from "@/components/applications-list";
 import { AutoApplyOverlay } from "@/components/auto-apply-overlay";
 import { AutoApplyPanel } from "@/components/auto-apply-panel";
 import { Button } from "@/components/button";
@@ -19,6 +20,7 @@ import { JobFilters } from "@/components/job-filters";
 import { Sidebar } from "@/components/sidebar";
 import { Spinner } from "@/components/spinner";
 import { StatCard } from "@/components/stat-card";
+import { useApplications } from "@/hooks/use-applications";
 import { useAutoApply } from "@/hooks/use-auto-apply";
 import { useGetJobs } from "@/hooks/use-get-jobs";
 import { JOBS, type Job } from "@/lib/jobs";
@@ -40,7 +42,8 @@ export default function DashboardPage() {
     jobsQuery.data?.pages.flatMap((page) => page.jobs) ??
     (jobsQuery.isError ? JOBS : []);
   const loadingJobs = jobsQuery.isPending;
-  const autoApply = useAutoApply(loadedJobs);
+  const apps = useApplications();
+  const autoApply = useAutoApply(loadedJobs, (job) => apps.add(job, "auto"));
 
   const appliedCount = autoApply.log.filter(
     (entry) => entry.status === "applied"
@@ -61,7 +64,9 @@ export default function DashboardPage() {
       <Container variant="parchment" className="flex min-w-0 flex-1 gap-5 p-5">
         <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
           <header className="flex items-center justify-between gap-3">
-            <h1 className="text-2xl font-bold text-espresso">Remote Jobs</h1>
+            <h1 className="text-2xl font-bold text-espresso">
+              {activeNav === "Applications" ? "Applications" : "Remote Jobs"}
+            </h1>
             <div className="flex items-center gap-4">
               <span className="relative text-espresso/70">
                 <BellIcon width={20} height={20} />
@@ -71,11 +76,20 @@ export default function DashboardPage() {
                 />
               </span>
               <span className="text-sm font-medium text-terracotta">
-                {totalMatching} matching jobs
+                {activeNav === "Applications"
+                  ? `${apps.applications.length} applications`
+                  : `${totalMatching} matching jobs`}
               </span>
             </div>
           </header>
 
+          {activeNav === "Applications" ? (
+            <ApplicationsList
+              applications={apps.applications}
+              onRemove={apps.remove}
+            />
+          ) : (
+            <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
             <StatCard
               icon={<BriefcaseIcon width={20} height={20} />}
@@ -178,6 +192,8 @@ export default function DashboardPage() {
               </Button>
             )}
           </div>
+            </>
+          )}
         </section>
 
         {selectedJob && (
@@ -185,6 +201,8 @@ export default function DashboardPage() {
             <JobDetailsPanel
               job={selectedJob}
               onClose={() => setSelectedJob(null)}
+              onApply={() => apps.add(selectedJob, "manual")}
+              applied={apps.has(selectedJob.id)}
             />
           </aside>
         )}

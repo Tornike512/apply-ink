@@ -7,9 +7,16 @@ import type { Job } from "@/lib/jobs";
 type JobDetailsPanelProps = {
   job: Job;
   onClose: () => void;
+  onApply?: () => void;
+  applied?: boolean;
 };
 
-export function JobDetailsPanel({ job, onClose }: JobDetailsPanelProps) {
+export function JobDetailsPanel({
+  job,
+  onClose,
+  onApply,
+  applied = false,
+}: JobDetailsPanelProps) {
   return (
     <Container variant="card" className="flex h-full flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-3">
@@ -64,8 +71,13 @@ export function JobDetailsPanel({ job, onClose }: JobDetailsPanelProps) {
         )}
       </div>
 
-      <Button variant="primary" className="w-full py-3 text-base">
-        Apply with AI
+      <Button
+        variant="primary"
+        onClick={onApply}
+        disabled={applied}
+        className="w-full py-3 text-base disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {applied ? "Applied ✓" : "Apply with AI"}
       </Button>
     </Container>
   );
