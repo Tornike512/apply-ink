@@ -6,6 +6,8 @@
   --terracotta: #cf8b67;
   --sienna: #9a7265;
   --espresso: #2a1713;
+  --surface: #fffcf9;
+  --success: #3e9b4f;
 
   --background: var(--cream);
   --foreground: var(--espresso);
@@ -19,6 +21,8 @@
   --color-terracotta: var(--terracotta);
   --color-sienna: var(--sienna);
   --color-espresso: var(--espresso);
+  --color-surface: var(--surface);
+  --color-success: var(--success);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
