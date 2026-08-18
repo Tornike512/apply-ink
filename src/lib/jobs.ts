@@ -8,11 +8,15 @@ export type Job = {
   tags: string[];
   posted: string;
   description: string;
+  logoColor: string;
+  verified: boolean;
 };
 
 export const JOBS: Job[] = [
   {
     id: "1",
+    logoColor: "#e6602c",
+    verified: true,
     title: "Senior Frontend Engineer",
     company: "Driftwood Labs",
     location: "Remote — Worldwide",
@@ -25,6 +29,8 @@ export const JOBS: Job[] = [
   },
   {
     id: "2",
+    logoColor: "#1f2a56",
+    verified: true,
     title: "Full-Stack Developer",
     company: "Terracotta AI",
     location: "Remote — Europe",
@@ -37,6 +43,8 @@ export const JOBS: Job[] = [
   },
   {
     id: "3",
+    logoColor: "#7c5ce0",
+    verified: true,
     title: "Product Engineer",
     company: "Inkwell",
     location: "Remote — US timezones",
@@ -49,6 +57,8 @@ export const JOBS: Job[] = [
   },
   {
     id: "4",
+    logoColor: "#c2452f",
+    verified: true,
     title: "React Native Engineer",
     company: "Sienna Health",
     location: "Remote — Worldwide",
@@ -61,6 +71,8 @@ export const JOBS: Job[] = [
   },
   {
     id: "5",
+    logoColor: "#0f766e",
+    verified: true,
     title: "Design Systems Engineer",
     company: "Parchment Co.",
     location: "Remote — Europe",
@@ -73,6 +85,8 @@ export const JOBS: Job[] = [
   },
   {
     id: "6",
+    logoColor: "#3e8e41",
+    verified: true,
     title: "Backend Engineer, Platform",
     company: "Emberline",
     location: "Remote — Worldwide",
