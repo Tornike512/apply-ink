@@ -73,7 +73,7 @@ export function AutoApplyOverlay({
             alt=""
             fill
             sizes="176px"
-            className={`object-cover transition-opacity duration-300 ${
+            className={`object-cover mix-blend-multiply transition-opacity duration-300 ${
               i === phaseIndex ? "opacity-100" : "opacity-0"
             }`}
           />
