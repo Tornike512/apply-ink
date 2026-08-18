@@ -1,10 +1,11 @@
 import type { HTMLAttributes } from "react";
 
-type BadgeVariant = "sand" | "terracotta";
+type BadgeVariant = "sand" | "terracotta" | "sienna";
 
 const variantClasses: Record<BadgeVariant, string> = {
   sand: "bg-sand text-espresso",
   terracotta: "bg-terracotta text-cream",
+  sienna: "bg-sienna text-cream",
 };
 
 type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
