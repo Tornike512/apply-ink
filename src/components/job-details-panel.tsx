@@ -49,7 +49,9 @@ export function JobDetailsPanel({ job, onClose }: JobDetailsPanelProps) {
         <h3 className="mb-1.5 text-sm font-semibold text-espresso">
           About the role
         </h3>
-        <p className="text-sm leading-6 text-espresso/80">{job.description}</p>
+        <p className="text-sm leading-6 text-espresso/80">
+          {job.description || "Open the posting for the full description."}
+        </p>
         {job.url !== "#" && (
           <a
             href={job.url}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BellIcon,
   BookmarkIcon,
@@ -11,6 +11,7 @@ import {
 } from "@/assets";
 import { AutoApplyOverlay } from "@/components/auto-apply-overlay";
 import { AutoApplyPanel } from "@/components/auto-apply-panel";
+import { Button } from "@/components/button";
 import { Container } from "@/components/container";
 import { JobCard } from "@/components/job-card";
 import { JobDetailsPanel } from "@/components/job-details-panel";
@@ -25,11 +26,21 @@ import { JOBS, type Job } from "@/lib/jobs";
 export default function DashboardPage() {
   const [activeNav, setActiveNav] = useState("Jobs");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const jobsQuery = useGetJobs();
-  const allJobs = jobsQuery.data?.jobs ?? (jobsQuery.isError ? JOBS : []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const jobsQuery = useGetJobs(debouncedSearch);
+  const lastPage = jobsQuery.data?.pages.at(-1);
+  const loadedJobs =
+    jobsQuery.data?.pages.flatMap((page) => page.jobs) ??
+    (jobsQuery.isError ? JOBS : []);
   const loadingJobs = jobsQuery.isPending;
-  const autoApply = useAutoApply(allJobs);
+  const autoApply = useAutoApply(loadedJobs);
 
   const appliedCount = autoApply.log.filter(
     (entry) => entry.status === "applied"
@@ -38,15 +49,10 @@ export default function DashboardPage() {
     (entry) => entry.status !== "limit"
   ).length;
 
-  const query = search.trim().toLowerCase();
-  const jobs = allJobs.filter(
-    (job) =>
-      job.title.toLowerCase().includes(query) ||
-      job.company.toLowerCase().includes(query)
-  );
-  const highMatches = allJobs.filter(
-    (job) => job.match >= autoApply.minMatch
-  ).length;
+  const jobs = loadedJobs;
+  const totalMatching = lastPage?.total ?? jobs.length;
+  const grandTotal = lastPage?.grandTotal ?? jobs.length;
+  const highMatches = lastPage?.highMatches ?? 0;
 
   return (
     <div className="flex h-svh w-full overflow-hidden">
@@ -65,7 +71,7 @@ export default function DashboardPage() {
                 />
               </span>
               <span className="text-sm font-medium text-terracotta">
-                {jobs.length} matching jobs
+                {totalMatching} matching jobs
               </span>
             </div>
           </header>
@@ -73,7 +79,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
             <StatCard
               icon={<BriefcaseIcon width={20} height={20} />}
-              value={loadingJobs ? "…" : allJobs.length}
+              value={loadingJobs ? "…" : grandTotal}
               label="Jobs found"
             />
             <StatCard
@@ -117,11 +123,11 @@ export default function DashboardPage() {
             minMatch={autoApply.minMatch}
             appliedCount={appliedCount}
             processedCount={processedCount}
-            totalCount={allJobs.length}
+            totalCount={loadedJobs.length}
             onStart={autoApply.start}
             onStop={autoApply.stop}
             onResetUsage={autoApply.resetUsage}
-            startDisabled={loadingJobs || allJobs.length === 0}
+            startDisabled={loadingJobs || loadedJobs.length === 0}
           />
 
           <JobFilters search={search} onSearchChange={setSearch} />
@@ -134,7 +140,8 @@ export default function DashboardPage() {
               >
                 <Spinner />
                 <p className="text-sm text-espresso/70">
-                  Loading remote jobs from live sources…
+                  Loading jobs — first visit builds the index from 100+ boards
+                  and can take a minute…
                 </p>
               </Container>
             )}
@@ -158,6 +165,18 @@ export default function DashboardPage() {
                 </p>
               </Container>
             )}
+            {jobsQuery.hasNextPage && (
+              <Button
+                variant="outline"
+                onClick={() => jobsQuery.fetchNextPage()}
+                disabled={jobsQuery.isFetchingNextPage}
+                className="self-center rounded-xl px-6 py-2.5"
+              >
+                {jobsQuery.isFetchingNextPage
+                  ? "Loading…"
+                  : `Load more (${jobs.length} of ${totalMatching})`}
+              </Button>
+            )}
           </div>
         </section>
 
@@ -176,7 +195,7 @@ export default function DashboardPage() {
         currentJob={autoApply.currentJob}
         appliedCount={appliedCount}
         processedCount={processedCount}
-        totalCount={allJobs.length}
+        totalCount={loadedJobs.length}
         usedToday={autoApply.usedToday}
         dailyLimit={autoApply.dailyLimit}
         onStop={autoApply.stop}
