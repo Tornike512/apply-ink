@@ -51,28 +51,30 @@ export function AutoApplyPanel({
           : `${usedToday}/${dailyLimit} applications used today`;
 
   return (
-    <Container variant="card" className="flex flex-col gap-4 p-6">
-      <div className="relative flex items-start justify-between">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sand/50 text-espresso">
+    <Container
+      variant="card"
+      className="flex w-full max-w-md flex-col gap-4 self-center p-6"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-sand/50 text-espresso">
           <FileTextIcon width={24} height={24} />
         </span>
         <svg
-          viewBox="0 0 100 40"
+          viewBox="0 0 240 44"
           preserveAspectRatio="none"
           aria-hidden="true"
-          className="absolute inset-x-16 top-2 h-10 text-terracotta/60"
+          className="mt-2 h-11 min-w-0 flex-1 text-terracotta/70"
         >
           <path
-            d="M0 30 C 30 -5, 70 45, 100 12"
+            d="M6 34 C 70 -8, 170 46, 234 10"
             fill="none"
             stroke="currentColor"
             strokeWidth={2}
             strokeLinecap="round"
             strokeDasharray="1 7"
-            vectorEffect="non-scaling-stroke"
           />
         </svg>
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sand text-sienna">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-sand text-sienna">
           <PlaneIcon width={22} height={22} />
         </span>
       </div>
