@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AutoApplyOverlay } from "@/components/auto-apply-overlay";
 import { AutoApplyPanel } from "@/components/auto-apply-panel";
 import { Container } from "@/components/container";
 import { JobCard } from "@/components/job-card";
@@ -56,7 +57,6 @@ export default function DashboardPage() {
             appliedCount={appliedCount}
             processedCount={processedCount}
             totalCount={JOBS.length}
-            currentJob={autoApply.currentJob}
             onStart={autoApply.start}
             onStop={autoApply.stop}
           />
@@ -91,6 +91,17 @@ export default function DashboardPage() {
           </aside>
         )}
       </Container>
+
+      <AutoApplyOverlay
+        open={autoApply.status === "running"}
+        currentJob={autoApply.currentJob}
+        appliedCount={appliedCount}
+        processedCount={processedCount}
+        totalCount={JOBS.length}
+        usedToday={autoApply.usedToday}
+        dailyLimit={autoApply.dailyLimit}
+        onStop={autoApply.stop}
+      />
     </div>
   );
 }
