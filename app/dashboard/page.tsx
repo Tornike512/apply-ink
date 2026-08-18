@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ActivityLog } from "@/components/activity-log";
 import { AutoApplyPanel } from "@/components/auto-apply-panel";
 import { Container } from "@/components/container";
 import { JobCard } from "@/components/job-card";
@@ -23,7 +22,6 @@ export default function DashboardPage() {
   const processedCount = autoApply.log.filter(
     (entry) => entry.status !== "limit"
   ).length;
-  const showLog = autoApply.status !== "idle" || autoApply.log.length > 0;
 
   const query = search.trim().toLowerCase();
   const jobs = JOBS.filter(
@@ -58,11 +56,10 @@ export default function DashboardPage() {
             appliedCount={appliedCount}
             processedCount={processedCount}
             totalCount={JOBS.length}
+            currentJob={autoApply.currentJob}
             onStart={autoApply.start}
             onStop={autoApply.stop}
           />
-
-          {showLog && <ActivityLog entries={autoApply.log} />}
 
           <JobFilters search={search} onSearchChange={setSearch} />
 
