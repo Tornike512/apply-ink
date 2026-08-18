@@ -4,3 +4,6 @@ export { FileTextIcon } from "./file-text-icon";
 export { IdCardIcon } from "./id-card-icon";
 export { SettingsIcon } from "./settings-icon";
 export { CloseIcon } from "./close-icon";
+export { PlaneIcon } from "./plane-icon";
+export { CalendarIcon } from "./calendar-icon";
+export { PlayIcon } from "./play-icon";
