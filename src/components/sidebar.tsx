@@ -24,7 +24,7 @@ type SidebarProps = {
 export function Sidebar({ active, onSelect }: SidebarProps) {
   return (
     <aside className="flex w-60 shrink-0 flex-col gap-8 bg-sienna p-4">
-      <Logo className="mx-2 mt-2" />
+      <Logo className="mx-auto mt-2" />
       <nav className="flex flex-col gap-1">
         {NAV_ITEMS.map(({ label, icon: Icon }) => (
           <SidebarButton

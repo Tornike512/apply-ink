@@ -5,8 +5,9 @@ export function Logo({ className = "" }: { className?: string }) {
     <Image
       src="/logo.png"
       alt="apply.ink"
-      width={144}
-      height={103}
+      width={112}
+      height={80}
+      unoptimized
       priority
       className={className}
     />
