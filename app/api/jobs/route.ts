@@ -1,7 +1,7 @@
 import type { Job } from "@/lib/jobs";
 
 const REVALIDATE_SECONDS = 21600; // 6h — Remotive asks for max ~4 calls/day
-const MAX_JOBS = 250;
+const MAX_JOBS = 400;
 
 const PROFILE_SKILLS = [
   "react",
@@ -100,6 +100,20 @@ async function getJson(url: string): Promise<unknown> {
   });
   if (!res.ok) throw new Error(`${url} -> ${res.status}`);
   return res.json();
+}
+
+async function getText(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+    next: { revalidate: REVALIDATE_SECONDS },
+  });
+  if (!res.ok) throw new Error(`${url} -> ${res.status}`);
+  return res.text();
+}
+
+function rssTag(block: string, name: string): string | undefined {
+  const match = block.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`));
+  return match?.[1];
 }
 
 type RemotiveJob = {
@@ -248,12 +262,216 @@ async function fetchRemoteOk(): Promise<Normalized[]> {
     }));
 }
 
+async function fetchWeWorkRemotely(): Promise<Normalized[]> {
+  const xml = await getText(
+    "https://weworkremotely.com/categories/remote-programming-jobs.rss"
+  );
+  return xml
+    .split("<item>")
+    .slice(1)
+    .map((block) => block.split("</item>")[0])
+    .map((item) => {
+      const rawTitle = decodeEntities(rssTag(item, "title") ?? "");
+      const [company, ...rest] = rawTitle.split(": ");
+      const url = rssTag(item, "link") ?? "https://weworkremotely.com";
+      const region = decodeEntities(rssTag(item, "region") ?? "Remote");
+      const category = decodeEntities(rssTag(item, "category") ?? "");
+      const pub = rssTag(item, "pubDate");
+      return {
+        id: `wwr-${url.split("/").pop() ?? url}`,
+        title: rest.join(": ") || rawTitle,
+        company: company || "We Work Remotely",
+        location: region.toLowerCase().includes("remote")
+          ? region
+          : `Remote — ${region}`,
+        salary: undefined,
+        tags: category ? [category] : [],
+        posted: relativeDate(pub ? Date.parse(pub) : null),
+        description: stripHtml(rssTag(item, "description") ?? ""),
+        source: "We Work Remotely",
+        url,
+        logoUrl: undefined,
+      };
+    });
+}
+
+const GREENHOUSE_BOARDS = [
+  "gitlab",
+  "cloudflare",
+  "duckduckgo",
+  "figma",
+  "stripe",
+  "discord",
+  "coinbase",
+  "reddit",
+  "databricks",
+  "anthropic",
+  "vercel",
+  "robinhood",
+];
+
+type GreenhouseJob = {
+  id: number;
+  title: string;
+  absolute_url: string;
+  updated_at?: string;
+  first_published?: string;
+  location?: { name?: string };
+  company_name?: string;
+  content?: string;
+};
+
+async function fetchGreenhouse(): Promise<Normalized[]> {
+  const perBoard = await Promise.all(
+    GREENHOUSE_BOARDS.map(async (board) => {
+      try {
+        const data = (await getJson(
+          `https://boards-api.greenhouse.io/v1/boards/${board}/jobs?content=true`
+        )) as { jobs?: GreenhouseJob[] };
+        return (data.jobs ?? [])
+          .filter((j) =>
+            (j.location?.name ?? "").toLowerCase().includes("remote")
+          )
+          .slice(0, 15)
+          .map((j) => ({
+            id: `greenhouse-${board}-${j.id}`,
+            title: j.title,
+            company:
+              j.company_name ||
+              board.charAt(0).toUpperCase() + board.slice(1),
+            location: j.location?.name ?? "Remote",
+            salary: undefined,
+            tags: [],
+            posted: relativeDate(
+              j.first_published
+                ? Date.parse(j.first_published)
+                : j.updated_at
+                  ? Date.parse(j.updated_at)
+                  : null
+            ),
+            description: stripHtml(decodeEntities(j.content ?? "")),
+            source: "Greenhouse",
+            url: j.absolute_url,
+            logoUrl: undefined,
+          }));
+      } catch {
+        return [];
+      }
+    })
+  );
+  return perBoard.flat();
+}
+
+const LEVER_BOARDS = ["palantir", "kraken", "mistral"];
+
+type LeverJob = {
+  id: string;
+  text: string;
+  hostedUrl: string;
+  createdAt?: number;
+  workplaceType?: string;
+  categories?: { location?: string; team?: string; commitment?: string };
+  descriptionPlain?: string;
+};
+
+async function fetchLever(): Promise<Normalized[]> {
+  const perBoard = await Promise.all(
+    LEVER_BOARDS.map(async (board) => {
+      try {
+        const data = (await getJson(
+          `https://api.lever.co/v0/postings/${board}?mode=json`
+        )) as LeverJob[];
+        return data
+          .filter(
+            (j) =>
+              j.workplaceType === "remote" ||
+              (j.categories?.location ?? "").toLowerCase().includes("remote")
+          )
+          .slice(0, 15)
+          .map((j) => ({
+            id: `lever-${board}-${j.id}`,
+            title: j.text,
+            company: board.charAt(0).toUpperCase() + board.slice(1),
+            location: j.categories?.location || "Remote",
+            salary: undefined,
+            tags: [j.categories?.team, j.categories?.commitment].filter(
+              (t): t is string => Boolean(t)
+            ),
+            posted: relativeDate(j.createdAt ?? null),
+            description: stripHtml(j.descriptionPlain ?? ""),
+            source: "Lever",
+            url: j.hostedUrl,
+            logoUrl: undefined,
+          }));
+      } catch {
+        return [];
+      }
+    })
+  );
+  return perBoard.flat();
+}
+
+type HnHit = {
+  objectID: string;
+  title?: string;
+  comment_text?: string;
+  created_at?: string;
+  parent_id?: number;
+};
+
+async function fetchHackerNews(): Promise<Normalized[]> {
+  const search = (await getJson(
+    "https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring&hitsPerPage=6"
+  )) as { hits?: HnHit[] };
+  const thread = (search.hits ?? []).find((h) =>
+    h.title?.includes("Who is hiring")
+  );
+  if (!thread) return [];
+  const comments = (await getJson(
+    `https://hn.algolia.com/api/v1/search_by_date?tags=comment,story_${thread.objectID}&hitsPerPage=200`
+  )) as { hits?: HnHit[] };
+  return (comments.hits ?? [])
+    .filter(
+      (h) => String(h.parent_id) === thread.objectID && h.comment_text
+    )
+    .filter((h) => /remote/i.test(h.comment_text ?? ""))
+    .slice(0, 40)
+    .map((h) => {
+      const firstLine = stripHtml(
+        (h.comment_text ?? "").split(/<p>/i)[0],
+        200
+      );
+      const segs = firstLine
+        .split("|")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return {
+        id: `hn-${h.objectID}`,
+        title:
+          segs[1] && segs[1].length <= 80 ? segs[1] : "Multiple roles",
+        company: (segs[0] ?? "HN poster").slice(0, 40),
+        location: "Remote (see post)",
+        salary: undefined,
+        tags: ["Hacker News"],
+        posted: relativeDate(h.created_at ? Date.parse(h.created_at) : null),
+        description: stripHtml(h.comment_text ?? "", 800),
+        source: "HN Who's Hiring",
+        url: `https://news.ycombinator.com/item?id=${h.objectID}`,
+        logoUrl: undefined,
+      };
+    });
+}
+
 export async function GET() {
   const fetchers = {
     remotive: fetchRemotive,
     arbeitnow: fetchArbeitnow,
     jobicy: fetchJobicy,
     remoteok: fetchRemoteOk,
+    weworkremotely: fetchWeWorkRemotely,
+    greenhouse: fetchGreenhouse,
+    lever: fetchLever,
+    hackernews: fetchHackerNews,
   };
 
   const names = Object.keys(fetchers) as (keyof typeof fetchers)[];
