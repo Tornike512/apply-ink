@@ -1,7 +1,7 @@
 import type { Job } from "@/lib/jobs";
 
 const REVALIDATE_SECONDS = 21600; // 6h — Remotive asks for max ~4 calls/day
-const MAX_JOBS = 60;
+const MAX_JOBS = 250;
 
 const PROFILE_SKILLS = [
   "react",
@@ -117,7 +117,7 @@ type RemotiveJob = {
 
 async function fetchRemotive(): Promise<Normalized[]> {
   const data = (await getJson(
-    "https://remotive.com/api/remote-jobs?limit=30"
+    "https://remotive.com/api/remote-jobs?limit=100"
   )) as { jobs?: RemotiveJob[] };
   return (data.jobs ?? []).map((j) => ({
     id: `remotive-${j.id}`,
@@ -147,10 +147,15 @@ type ArbeitnowJob = {
 };
 
 async function fetchArbeitnow(): Promise<Normalized[]> {
-  const data = (await getJson("https://www.arbeitnow.com/api/job-board-api")) as {
-    data?: ArbeitnowJob[];
-  };
-  return (data.data ?? [])
+  const pages = await Promise.all(
+    [1, 2, 3, 4].map((page) =>
+      getJson(`https://www.arbeitnow.com/api/job-board-api?page=${page}`).catch(
+        () => ({})
+      )
+    )
+  );
+  return pages
+    .flatMap((p) => (p as { data?: ArbeitnowJob[] }).data ?? [])
     .filter((j) => j.remote === true)
     .map((j) => ({
       id: `arbeitnow-${j.slug}`,
@@ -184,7 +189,7 @@ type JobicyJob = {
 };
 
 async function fetchJobicy(): Promise<Normalized[]> {
-  const data = (await getJson("https://jobicy.com/api/v2/remote-jobs?count=25")) as {
+  const data = (await getJson("https://jobicy.com/api/v2/remote-jobs?count=50")) as {
     jobs?: JobicyJob[];
   };
   return (data.jobs ?? []).map((j) => ({
@@ -225,7 +230,6 @@ async function fetchRemoteOk(): Promise<Normalized[]> {
   return data
     .slice(1) // first element is a legal notice
     .filter((j) => j.id && j.position && j.company)
-    .slice(0, 25)
     .map((j) => ({
       id: `remoteok-${j.id}`,
       title: j.position as string,
