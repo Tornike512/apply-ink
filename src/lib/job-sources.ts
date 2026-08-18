@@ -1,3 +1,5 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import type { Job } from "@/lib/jobs";
 import boards from "./ats-boards.json";
 
@@ -535,6 +537,112 @@ async function fetchTheMuse(): Promise<Normalized[]> {
     }));
 }
 
+// JSearch (RapidAPI, keyed): free tier is 200 requests/month, so results are
+// cached to their own side file and refetched at most every 48h.
+const JSEARCH_CACHE = path.join(process.cwd(), "data", "jsearch-cache.json");
+const JSEARCH_TTL_MS = 48 * 3_600_000;
+const JSEARCH_QUERIES = ["remote software developer", "remote frontend engineer"];
+const JSEARCH_PAGES_PER_QUERY = 5;
+
+type JSearchJob = {
+  job_id: string;
+  job_title?: string;
+  employer_name?: string;
+  employer_logo?: string;
+  job_publisher?: string;
+  job_employment_type?: string;
+  job_apply_link?: string;
+  job_description?: string;
+  job_is_remote?: boolean;
+  job_posted_at_timestamp?: number;
+  job_location?: string;
+  job_country?: string;
+  job_salary_string?: string;
+  job_min_salary?: number;
+  job_max_salary?: number;
+  job_salary_period?: string;
+};
+
+async function fetchJSearch(): Promise<Normalized[]> {
+  const key = process.env.JSEARCH_RAPIDAPI_KEY;
+  if (!key) return [];
+
+  try {
+    const raw = await fs.readFile(JSEARCH_CACHE, "utf8");
+    const cached = JSON.parse(raw) as {
+      fetchedAt: number;
+      jobs: Normalized[];
+    };
+    if (Date.now() - cached.fetchedAt < JSEARCH_TTL_MS) return cached.jobs;
+  } catch {
+    // no cache yet
+  }
+
+  const out: Normalized[] = [];
+  for (const query of JSEARCH_QUERIES) {
+    let cursor: string | undefined;
+    for (let page = 0; page < JSEARCH_PAGES_PER_QUERY; page++) {
+      const params = new URLSearchParams({
+        query,
+        country: "us",
+        date_posted: "month",
+        work_from_home: "true",
+      });
+      if (cursor) params.set("cursor", cursor);
+      const res = await fetch(
+        `https://jsearch.p.rapidapi.com/search-v2?${params}`,
+        {
+          headers: {
+            "x-rapidapi-host": "jsearch.p.rapidapi.com",
+            "x-rapidapi-key": key,
+          },
+          cache: "no-store",
+        }
+      );
+      if (!res.ok) break;
+      const data = (await res.json()) as {
+        data?: { jobs?: JSearchJob[]; cursor?: string };
+      };
+      const jobs = data.data?.jobs ?? [];
+      for (const j of jobs) {
+        if (j.job_is_remote === false) continue;
+        out.push({
+          id: `jsearch-${j.job_id.slice(0, 28)}`,
+          title: j.job_title ?? "Untitled role",
+          company: j.employer_name ?? "Unknown company",
+          location: j.job_location
+            ? `Remote — ${j.job_location}`
+            : "Remote — US",
+          salary:
+            j.job_salary_string ??
+            (j.job_min_salary && j.job_max_salary
+              ? `$${Math.round(j.job_min_salary / 1000)}k – $${Math.round(j.job_max_salary / 1000)}k`
+              : undefined),
+          tags: [j.job_publisher, j.job_employment_type].filter(
+            (t): t is string => Boolean(t)
+          ),
+          ...datePair(
+            j.job_posted_at_timestamp ? j.job_posted_at_timestamp * 1000 : null
+          ),
+          description: stripHtml(j.job_description ?? ""),
+          source: "JSearch",
+          url: j.job_apply_link ?? "https://www.google.com/search?q=jobs",
+          logoUrl: j.employer_logo || undefined,
+        });
+      }
+      cursor = data.data?.cursor;
+      if (!cursor || jobs.length === 0) break;
+    }
+  }
+
+  await fs.mkdir(path.dirname(JSEARCH_CACHE), { recursive: true });
+  await fs.writeFile(
+    JSEARCH_CACHE,
+    JSON.stringify({ fetchedAt: Date.now(), jobs: out })
+  );
+  return out;
+}
+
 // ---------- mass ATS harvesting (boards discovered by scripts/discover-boards.mjs) ----------
 
 type GreenhouseJob = {
@@ -764,6 +872,7 @@ export async function harvestAll(): Promise<Harvest> {
     himalayas: fetchHimalayas,
     workingnomads: fetchWorkingNomads,
     themuse: fetchTheMuse,
+    jsearch: fetchJSearch,
   };
   const feedNames = Object.keys(feeds) as (keyof typeof feeds)[];
 
