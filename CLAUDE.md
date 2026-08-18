@@ -43,9 +43,10 @@
 
 ### Variants
 - Components with multiple looks take a `variant` prop; each variant has its own distinct colors from the `globals.css` palette.
-- `<Button />` has exactly **two variants**:
+- `<Button />` has **three variants**:
   - `primary` — `bg-sienna text-cream`
   - `secondary` — `bg-sand text-espresso`
+  - `outline` — `border-sand bg-surface text-terracotta`
 - Add new variants to the existing component file only when a design genuinely needs a new look.
 
 ### Colors
