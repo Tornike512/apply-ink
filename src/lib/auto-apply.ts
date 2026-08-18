@@ -3,7 +3,8 @@ import type { Job } from "@/lib/jobs";
 export const AUTO_APPLY_RULES = {
   minMatch: 80,
   dailyLimit: 5,
-  delayMs: 2200,
+  // Must stay in sync with the loader: 4 phases x PHASE_INTERVAL_MS (auto-apply-overlay)
+  delayMs: 6000,
 };
 
 export type AutoApplyStatus =

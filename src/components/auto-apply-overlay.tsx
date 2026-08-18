@@ -4,7 +4,8 @@ import { Button } from "@/components/button";
 import { Spinner } from "@/components/spinner";
 import type { Job } from "@/lib/jobs";
 
-const PHASE_INTERVAL_MS = 550;
+// 4 phases fill one job window (AUTO_APPLY_RULES.delayMs = 6000)
+const PHASE_INTERVAL_MS = 1500;
 
 const PHASE_IMAGES = [
   "/loader/checking.png",
@@ -73,7 +74,7 @@ export function AutoApplyOverlay({
             alt=""
             fill
             sizes="176px"
-            className={`object-cover mix-blend-multiply transition-opacity duration-300 ${
+            className={`object-cover transition-opacity duration-300 ${
               i === phaseIndex ? "opacity-100" : "opacity-0"
             }`}
           />
