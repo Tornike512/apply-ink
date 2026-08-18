@@ -1,17 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { ActivityLog } from "@/components/activity-log";
+import { AutoApplyPanel } from "@/components/auto-apply-panel";
 import { Container } from "@/components/container";
 import { JobCard } from "@/components/job-card";
 import { JobDetailsPanel } from "@/components/job-details-panel";
 import { JobFilters } from "@/components/job-filters";
 import { Sidebar } from "@/components/sidebar";
+import { useAutoApply } from "@/hooks/use-auto-apply";
 import { JOBS, type Job } from "@/lib/jobs";
 
 export default function DashboardPage() {
   const [activeNav, setActiveNav] = useState("Jobs");
   const [search, setSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const autoApply = useAutoApply(JOBS);
+
+  const appliedCount = autoApply.log.filter(
+    (entry) => entry.status === "applied"
+  ).length;
+  const processedCount = autoApply.log.filter(
+    (entry) => entry.status !== "limit"
+  ).length;
+  const showLog = autoApply.status !== "idle" || autoApply.log.length > 0;
 
   const query = search.trim().toLowerCase();
   const jobs = JOBS.filter(
@@ -28,7 +40,7 @@ export default function DashboardPage() {
         variant="parchment"
         className="flex min-w-0 flex-1 gap-5 p-5"
       >
-        <section className="flex min-w-0 flex-1 flex-col gap-4">
+        <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
           <header className="flex items-baseline justify-between gap-3">
             <h1 className="text-2xl font-semibold text-espresso">
               Remote Jobs
@@ -38,9 +50,23 @@ export default function DashboardPage() {
             </span>
           </header>
 
+          <AutoApplyPanel
+            status={autoApply.status}
+            usedToday={autoApply.usedToday}
+            dailyLimit={autoApply.dailyLimit}
+            minMatch={autoApply.minMatch}
+            appliedCount={appliedCount}
+            processedCount={processedCount}
+            totalCount={JOBS.length}
+            onStart={autoApply.start}
+            onStop={autoApply.stop}
+          />
+
+          {showLog && <ActivityLog entries={autoApply.log} />}
+
           <JobFilters search={search} onSearchChange={setSearch} />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-2">
+          <div className="flex flex-col gap-3 pb-2">
             {jobs.map((job) => (
               <JobCard
                 key={job.id}
