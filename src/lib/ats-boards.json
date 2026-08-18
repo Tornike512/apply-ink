@@ -1,0 +1,417 @@
+{
+  "greenhouse": [
+    {
+      "slug": "samsara",
+      "remoteJobs": 238
+    },
+    {
+      "slug": "remotecom",
+      "remoteJobs": 208
+    },
+    {
+      "slug": "affirm",
+      "remoteJobs": 193
+    },
+    {
+      "slug": "gitlab",
+      "remoteJobs": 173
+    },
+    {
+      "slug": "twilio",
+      "remoteJobs": 156
+    },
+    {
+      "slug": "coinbase",
+      "remoteJobs": 153
+    },
+    {
+      "slug": "grafanalabs",
+      "remoteJobs": 142
+    },
+    {
+      "slug": "clickhouse",
+      "remoteJobs": 131
+    },
+    {
+      "slug": "reddit",
+      "remoteJobs": 107
+    },
+    {
+      "slug": "instacart",
+      "remoteJobs": 106
+    },
+    {
+      "slug": "stripe",
+      "remoteJobs": 99
+    },
+    {
+      "slug": "pinterest",
+      "remoteJobs": 90
+    },
+    {
+      "slug": "fivetran",
+      "remoteJobs": 88
+    },
+    {
+      "slug": "mozilla",
+      "remoteJobs": 85
+    },
+    {
+      "slug": "databricks",
+      "remoteJobs": 58
+    },
+    {
+      "slug": "datadog",
+      "remoteJobs": 50
+    },
+    {
+      "slug": "monzo",
+      "remoteJobs": 46
+    },
+    {
+      "slug": "dropbox",
+      "remoteJobs": 37
+    },
+    {
+      "slug": "temporaltechnologies",
+      "remoteJobs": 37
+    },
+    {
+      "slug": "launchdarkly",
+      "remoteJobs": 37
+    },
+    {
+      "slug": "airbnb",
+      "remoteJobs": 29
+    },
+    {
+      "slug": "webflow",
+      "remoteJobs": 26
+    },
+    {
+      "slug": "marqeta",
+      "remoteJobs": 23
+    },
+    {
+      "slug": "algolia",
+      "remoteJobs": 18
+    },
+    {
+      "slug": "wikimedia",
+      "remoteJobs": 17
+    },
+    {
+      "slug": "honeycomb",
+      "remoteJobs": 16
+    },
+    {
+      "slug": "gleanwork",
+      "remoteJobs": 15
+    },
+    {
+      "slug": "zocdoc",
+      "remoteJobs": 14
+    },
+    {
+      "slug": "vercel",
+      "remoteJobs": 13
+    },
+    {
+      "slug": "roblox",
+      "remoteJobs": 10
+    },
+    {
+      "slug": "typeform",
+      "remoteJobs": 10
+    },
+    {
+      "slug": "calendly",
+      "remoteJobs": 9
+    },
+    {
+      "slug": "airtable",
+      "remoteJobs": 9
+    },
+    {
+      "slug": "khanacademy",
+      "remoteJobs": 9
+    },
+    {
+      "slug": "waymo",
+      "remoteJobs": 9
+    },
+    {
+      "slug": "gusto",
+      "remoteJobs": 8
+    },
+    {
+      "slug": "pagerduty",
+      "remoteJobs": 8
+    },
+    {
+      "slug": "planetscale",
+      "remoteJobs": 8
+    },
+    {
+      "slug": "cloudflare",
+      "remoteJobs": 6
+    },
+    {
+      "slug": "discord",
+      "remoteJobs": 5
+    },
+    {
+      "slug": "chime",
+      "remoteJobs": 5
+    },
+    {
+      "slug": "cockroachlabs",
+      "remoteJobs": 4
+    },
+    {
+      "slug": "togetherai",
+      "remoteJobs": 4
+    },
+    {
+      "slug": "onemedical",
+      "remoteJobs": 4
+    },
+    {
+      "slug": "asana",
+      "remoteJobs": 3
+    },
+    {
+      "slug": "chargepoint",
+      "remoteJobs": 3
+    },
+    {
+      "slug": "flexport",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "intercom",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "amplitude",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "duolingo",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "twitch",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "udemy",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "fastly",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "netlify",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "circleci",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "checkr",
+      "remoteJobs": 1
+    },
+    {
+      "slug": "medium",
+      "remoteJobs": 1
+    },
+    {
+      "slug": "voxmedia",
+      "remoteJobs": 1
+    },
+    {
+      "slug": "ginkgobioworks",
+      "remoteJobs": 1
+    }
+  ],
+  "lever": [],
+  "ashby": [
+    {
+      "slug": "openai",
+      "remoteJobs": 470
+    },
+    {
+      "slug": "harvey",
+      "remoteJobs": 315
+    },
+    {
+      "slug": "elevenlabs",
+      "remoteJobs": 210
+    },
+    {
+      "slug": "cohere",
+      "remoteJobs": 134
+    },
+    {
+      "slug": "ramp",
+      "remoteJobs": 123
+    },
+    {
+      "slug": "iceye",
+      "remoteJobs": 123
+    },
+    {
+      "slug": "vanta",
+      "remoteJobs": 88
+    },
+    {
+      "slug": "notion",
+      "remoteJobs": 87
+    },
+    {
+      "slug": "replit",
+      "remoteJobs": 77
+    },
+    {
+      "slug": "baseten",
+      "remoteJobs": 74
+    },
+    {
+      "slug": "drata",
+      "remoteJobs": 52
+    },
+    {
+      "slug": "cursor",
+      "remoteJobs": 48
+    },
+    {
+      "slug": "benchling",
+      "remoteJobs": 46
+    },
+    {
+      "slug": "langchain",
+      "remoteJobs": 39
+    },
+    {
+      "slug": "render",
+      "remoteJobs": 34
+    },
+    {
+      "slug": "linear",
+      "remoteJobs": 33
+    },
+    {
+      "slug": "supabase",
+      "remoteJobs": 31
+    },
+    {
+      "slug": "sierra",
+      "remoteJobs": 29
+    },
+    {
+      "slug": "cognition",
+      "remoteJobs": 19
+    },
+    {
+      "slug": "decagon",
+      "remoteJobs": 17
+    },
+    {
+      "slug": "watershed",
+      "remoteJobs": 16
+    },
+    {
+      "slug": "poolside",
+      "remoteJobs": 15
+    },
+    {
+      "slug": "resend",
+      "remoteJobs": 11
+    },
+    {
+      "slug": "posthog",
+      "remoteJobs": 9
+    },
+    {
+      "slug": "railway",
+      "remoteJobs": 8
+    },
+    {
+      "slug": "lovable",
+      "remoteJobs": 8
+    },
+    {
+      "slug": "sweep",
+      "remoteJobs": 7
+    },
+    {
+      "slug": "pinecone",
+      "remoteJobs": 6
+    },
+    {
+      "slug": "anyscale",
+      "remoteJobs": 6
+    },
+    {
+      "slug": "isometric",
+      "remoteJobs": 4
+    },
+    {
+      "slug": "runway",
+      "remoteJobs": 4
+    },
+    {
+      "slug": "factory",
+      "remoteJobs": 4
+    },
+    {
+      "slug": "turion-space",
+      "remoteJobs": 3
+    },
+    {
+      "slug": "jump",
+      "remoteJobs": 3
+    },
+    {
+      "slug": "warp",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "saronic",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "sylvera",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "gamma",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "secureframe",
+      "remoteJobs": 1
+    },
+    {
+      "slug": "ideogram",
+      "remoteJobs": 1
+    }
+  ],
+  "smartrecruiters": [
+    {
+      "slug": "servicenow",
+      "remoteJobs": 37
+    },
+    {
+      "slug": "boschgroup",
+      "remoteJobs": 1
+    },
+    {
+      "slug": "wework",
+      "remoteJobs": 1
+    }
+  ]
+}
