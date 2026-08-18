@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/button";
+import { JobCard } from "@/components/job-card";
 import { Spinner } from "@/components/spinner";
 import type { Job } from "@/lib/jobs";
 
@@ -81,20 +82,19 @@ export function AutoApplyOverlay({
           />
         ))}
       </div>
-      <div className="flex flex-col items-center gap-2 text-center">
-        <p
-          aria-live="polite"
-          className="flex items-center gap-3 text-xl font-semibold text-espresso"
-        >
-          <Spinner />
-          {phases[phaseIndex]}
-        </p>
-        {currentJob && (
-          <p className="text-sm text-espresso/70">
-            {currentJob.title} · {currentJob.company}
-          </p>
-        )}
-      </div>
+      {currentJob && (
+        <div key={currentJob.id} className="w-full max-w-xl animate-card-in">
+          <JobCard job={currentJob} />
+        </div>
+      )}
+
+      <p
+        aria-live="polite"
+        className="flex items-center gap-3 text-center text-xl font-semibold text-espresso"
+      >
+        <Spinner />
+        {phases[phaseIndex]}
+      </p>
       <p className="text-sm text-espresso/60">
         {processedCount} of {totalCount} checked · {appliedCount} sent ·{" "}
         {usedToday}/{dailyLimit} today
