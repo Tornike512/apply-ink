@@ -7,6 +7,7 @@ import {
 } from "@/assets";
 import { Logo } from "@/components/logo";
 import { SidebarButton } from "@/components/sidebar-button";
+import { SidebarFooter } from "@/components/sidebar-footer";
 
 const NAV_ITEMS = [
   { label: "Jobs", icon: BriefcaseIcon },
@@ -23,9 +24,9 @@ type SidebarProps = {
 
 export function Sidebar({ active, onSelect }: SidebarProps) {
   return (
-    <aside className="flex w-60 shrink-0 flex-col gap-8 bg-sienna p-4">
-      <Logo className="mx-auto mt-2" />
-      <nav className="flex flex-col gap-1">
+    <aside className="flex w-64 shrink-0 flex-col gap-8 border-r border-sand/70 bg-surface p-4">
+      <Logo className="px-2 pt-2" />
+      <nav className="flex flex-col gap-1.5">
         {NAV_ITEMS.map(({ label, icon: Icon }) => (
           <SidebarButton
             key={label}
@@ -36,6 +37,7 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
           />
         ))}
       </nav>
+      <SidebarFooter name="Nikhil" plan="Premium Plan" />
     </aside>
   );
 }
