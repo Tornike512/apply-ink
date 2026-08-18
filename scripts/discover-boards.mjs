@@ -1,6 +1,18 @@
 // Probes candidate ATS board slugs and writes the live ones (with >=1 remote job)
 // to src/lib/ats-boards.json. Run: node scripts/discover-boards.mjs
-import { writeFileSync } from "node:fs";
+// Generic candidates in company-slugs.txt (from remoteintech/remote-jobs) are
+// probed against Greenhouse, Ashby, and Workable.
+import { readFileSync, writeFileSync } from "node:fs";
+
+let GENERIC = [];
+try {
+  GENERIC = readFileSync(new URL("./company-slugs.txt", import.meta.url), "utf8")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+} catch {
+  console.log("no company-slugs.txt — probing built-in candidates only");
+}
 
 const GREENHOUSE = [
   "gitlab", "cloudflare", "duckduckgo", "figma", "stripe", "discord", "coinbase",
@@ -80,7 +92,35 @@ const SMARTRECRUITERS = [
   "nielsen", "equinox", "wework", "sonos", "logitech", "garmin", "gopro",
 ];
 
-const results = { greenhouse: [], lever: [], ashby: [], smartrecruiters: [] };
+const WORKABLE = [
+  "bandlabtechnologies", "devsquad", "huggingface", "intellum-inc",
+  "mixcloud-limited", "remotebase", "scrapinghub", "shippabo", "sigmadefense",
+  "wp-media",
+];
+
+LEVER.push(
+  "mycelium", "alan", "anomali", "appen-2", "circonus", "findem", "iterative",
+  "lifen", "medium", "myollie", "skillshare", "taplytics", "theoremonellc", "voxy"
+);
+GREENHOUSE.push(
+  "airbyte", "consensys", "impala", "influxdb", "modernhealth", "recharge",
+  "truelogic", "zupinnovation"
+);
+ASHBY.push("deel", "kindred", "luxor", "sketch");
+
+const uniq = (list) => [...new Set(list)];
+const GH_ALL = uniq([...GREENHOUSE, ...GENERIC]);
+const ASHBY_ALL = uniq([...ASHBY, ...GENERIC]);
+const WORKABLE_ALL = uniq([...WORKABLE, ...GENERIC]);
+const LEVER_ALL = uniq(LEVER);
+
+const results = {
+  greenhouse: [],
+  lever: [],
+  ashby: [],
+  smartrecruiters: [],
+  workable: [],
+};
 
 async function probe(url, extract) {
   const controller = new AbortController();
@@ -99,8 +139,44 @@ async function probe(url, extract) {
   }
 }
 
+async function probePost(url, body, extract) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return 0;
+    return extract(await res.json());
+  } catch {
+    return 0;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const TASKS = [
-  ...GREENHOUSE.map((slug) => ({
+  ...WORKABLE_ALL.map((slug) => ({
+    kind: "workable",
+    slug,
+    run: () =>
+      probePost(
+        `https://apply.workable.com/api/v3/accounts/${slug}/jobs`,
+        { query: "", location: [], department: [], worktype: [], remote: [] },
+        (d) =>
+          (d.results ?? []).filter(
+            (j) => j.remote === true || j.workplace === "remote"
+          ).length
+      ),
+  })),
+  ...GH_ALL.map((slug) => ({
     kind: "greenhouse",
     slug,
     run: () =>
@@ -110,7 +186,7 @@ const TASKS = [
         ).length
       ),
   })),
-  ...LEVER.map((slug) => ({
+  ...LEVER_ALL.map((slug) => ({
     kind: "lever",
     slug,
     run: () =>
@@ -124,7 +200,7 @@ const TASKS = [
           : 0
       ),
   })),
-  ...ASHBY.map((slug) => ({
+  ...ASHBY_ALL.map((slug) => ({
     kind: "ashby",
     slug,
     run: () =>
@@ -144,7 +220,7 @@ const TASKS = [
 ];
 
 let done = 0;
-const CONCURRENCY = 10;
+const CONCURRENCY = 14;
 const queue = [...TASKS];
 await Promise.all(
   Array.from({ length: CONCURRENCY }, async () => {
