@@ -194,7 +194,7 @@ type ArbeitnowJob = {
 
 async function fetchArbeitnow(): Promise<Normalized[]> {
   const pages = await Promise.all(
-    [1, 2, 3, 4].map((page) =>
+    [1, 2, 3, 4, 5, 6, 7, 8].map((page) =>
       getJson(`https://www.arbeitnow.com/api/job-board-api?page=${page}`).catch(
         () => ({})
       )
@@ -293,13 +293,29 @@ async function fetchRemoteOk(): Promise<Normalized[]> {
     }));
 }
 
+const WWR_CATEGORIES = [
+  "remote-programming-jobs",
+  "remote-design-jobs",
+  "remote-devops-sysadmin-jobs",
+  "remote-management-and-finance-jobs",
+  "remote-product-jobs",
+  "remote-sales-and-marketing-jobs",
+  "remote-customer-support-jobs",
+  "remote-full-stack-programming-jobs",
+  "remote-front-end-programming-jobs",
+  "remote-back-end-programming-jobs",
+];
+
 async function fetchWeWorkRemotely(): Promise<Normalized[]> {
-  const xml = await getText(
-    "https://weworkremotely.com/categories/remote-programming-jobs.rss"
+  const feeds = await Promise.all(
+    WWR_CATEGORIES.map((category) =>
+      getText(`https://weworkremotely.com/categories/${category}.rss`).catch(
+        () => ""
+      )
+    )
   );
-  return xml
-    .split("<item>")
-    .slice(1)
+  return feeds
+    .flatMap((xml) => xml.split("<item>").slice(1))
     .map((block) => block.split("</item>")[0])
     .map((item) => {
       const rawTitle = decodeEntities(rssTag(item, "title") ?? "");
@@ -343,12 +359,12 @@ async function fetchHackerNews(): Promise<Normalized[]> {
   );
   if (!thread) return [];
   const comments = (await getJson(
-    `https://hn.algolia.com/api/v1/search_by_date?tags=comment,story_${thread.objectID}&hitsPerPage=200`
+    `https://hn.algolia.com/api/v1/search_by_date?tags=comment,story_${thread.objectID}&hitsPerPage=1000`
   )) as { hits?: HnHit[] };
   return (comments.hits ?? [])
     .filter((h) => String(h.parent_id) === thread.objectID && h.comment_text)
     .filter((h) => /remote/i.test(h.comment_text ?? ""))
-    .slice(0, 40)
+    .slice(0, 150)
     .map((h) => {
       const firstLine = stripHtml((h.comment_text ?? "").split(/<p>/i)[0], 200);
       const segs = firstLine
@@ -450,6 +466,97 @@ async function fetchAshbyBoard(board: { slug: string }): Promise<Normalized[]> {
     }));
 }
 
+type WorkableJob = {
+  id?: number;
+  shortcode?: string;
+  title?: string;
+  remote?: boolean;
+  workplace?: string;
+  published?: string;
+  department?: string[];
+  location?: { country?: string; city?: string };
+};
+
+async function fetchWorkableBoard(board: {
+  slug: string;
+}): Promise<Normalized[]> {
+  const res = await fetch(
+    `https://apply.workable.com/api/v3/accounts/${board.slug}/jobs`,
+    {
+      method: "POST",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: "",
+        location: [],
+        department: [],
+        worktype: [],
+        remote: [],
+      }),
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) throw new Error(`workable/${board.slug} -> ${res.status}`);
+  const data = (await res.json()) as { results?: WorkableJob[] };
+  return (data.results ?? [])
+    .filter((j) => j.remote === true || j.workplace === "remote")
+    .map((j) => ({
+      id: `workable-${board.slug}-${j.id ?? j.shortcode}`,
+      title: j.title ?? "Untitled role",
+      company: titleCase(board.slug),
+      location: j.location?.country
+        ? `Remote — ${j.location.country}`
+        : "Remote",
+      salary: undefined,
+      tags: (j.department ?? []).slice(0, 2),
+      posted: relativeDate(j.published ? Date.parse(j.published) : null),
+      description: "",
+      source: "Workable",
+      url: `https://apply.workable.com/${board.slug}/j/${j.shortcode ?? ""}`,
+      logoUrl: undefined,
+    }));
+}
+
+type LeverJob = {
+  id: string;
+  text: string;
+  hostedUrl: string;
+  createdAt?: number;
+  workplaceType?: string;
+  categories?: { location?: string; team?: string; commitment?: string };
+  descriptionPlain?: string;
+};
+
+async function fetchLeverBoard(board: { slug: string }): Promise<Normalized[]> {
+  const data = (await getJson(
+    `https://api.lever.co/v0/postings/${board.slug}?mode=json`
+  )) as LeverJob[];
+  return data
+    .filter(
+      (j) =>
+        j.workplaceType === "remote" ||
+        (j.categories?.location ?? "").toLowerCase().includes("remote")
+    )
+    .map((j) => ({
+      id: `lever-${board.slug}-${j.id}`,
+      title: j.text,
+      company: titleCase(board.slug),
+      location: j.categories?.location || "Remote",
+      salary: undefined,
+      tags: [j.categories?.team, j.categories?.commitment].filter(
+        (t): t is string => Boolean(t)
+      ),
+      posted: relativeDate(j.createdAt ?? null),
+      description: stripHtml(j.descriptionPlain ?? ""),
+      source: "Lever",
+      url: j.hostedUrl,
+      logoUrl: undefined,
+    }));
+}
+
 type SmartRecruitersJob = {
   id: string;
   name: string;
@@ -509,12 +616,15 @@ export async function harvestAll(): Promise<Harvest> {
   };
   const feedNames = Object.keys(feeds) as (keyof typeof feeds)[];
 
-  const [feedResults, greenhouse, ashby, smartrecruiters] = await Promise.all([
-    Promise.allSettled(feedNames.map((n) => feeds[n]())),
-    pooled(boards.greenhouse, 10, fetchGreenhouseBoard),
-    pooled(boards.ashby, 10, fetchAshbyBoard),
-    pooled(boards.smartrecruiters, 5, fetchSmartRecruitersBoard),
-  ]);
+  const [feedResults, greenhouse, ashby, smartrecruiters, workable, lever] =
+    await Promise.all([
+      Promise.allSettled(feedNames.map((n) => feeds[n]())),
+      pooled(boards.greenhouse, 10, fetchGreenhouseBoard),
+      pooled(boards.ashby, 10, fetchAshbyBoard),
+      pooled(boards.smartrecruiters, 5, fetchSmartRecruitersBoard),
+      pooled(boards.workable ?? [], 10, fetchWorkableBoard),
+      pooled(boards.lever ?? [], 10, fetchLeverBoard),
+    ]);
 
   const sources: Record<string, number> = {};
   const all: Normalized[] = [];
@@ -529,7 +639,9 @@ export async function harvestAll(): Promise<Harvest> {
   sources.greenhouse = greenhouse.length;
   sources.ashby = ashby.length;
   sources.smartrecruiters = smartrecruiters.length;
-  all.push(...greenhouse, ...ashby, ...smartrecruiters);
+  sources.workable = workable.length;
+  sources.lever = lever.length;
+  all.push(...greenhouse, ...ashby, ...smartrecruiters, ...workable, ...lever);
 
   const seen = new Set<string>();
   const jobs: Job[] = [];
