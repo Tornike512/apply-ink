@@ -1,6 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import {
+  BellIcon,
+  BookmarkIcon,
+  BriefcaseIcon,
+  ClockIcon,
+  TargetIcon,
+  ZapIcon,
+} from "@/assets";
 import { AutoApplyOverlay } from "@/components/auto-apply-overlay";
 import { AutoApplyPanel } from "@/components/auto-apply-panel";
 import { Container } from "@/components/container";
@@ -8,6 +16,7 @@ import { JobCard } from "@/components/job-card";
 import { JobDetailsPanel } from "@/components/job-details-panel";
 import { JobFilters } from "@/components/job-filters";
 import { Sidebar } from "@/components/sidebar";
+import { StatCard } from "@/components/stat-card";
 import { useAutoApply } from "@/hooks/use-auto-apply";
 import { JOBS, type Job } from "@/lib/jobs";
 
@@ -30,24 +39,71 @@ export default function DashboardPage() {
       job.title.toLowerCase().includes(query) ||
       job.company.toLowerCase().includes(query)
   );
+  const highMatches = JOBS.filter(
+    (job) => job.match >= autoApply.minMatch
+  ).length;
 
   return (
     <div className="flex h-svh w-full overflow-hidden">
       <Sidebar active={activeNav} onSelect={setActiveNav} />
 
-      <Container
-        variant="parchment"
-        className="flex min-w-0 flex-1 gap-5 p-5"
-      >
+      <Container variant="parchment" className="flex min-w-0 flex-1 gap-5 p-5">
         <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
-          <header className="flex items-baseline justify-between gap-3">
-            <h1 className="text-2xl font-semibold text-espresso">
-              Remote Jobs
-            </h1>
-            <span className="text-sm text-espresso/60">
-              {jobs.length} matching
-            </span>
+          <header className="flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold text-espresso">Remote Jobs</h1>
+            <div className="flex items-center gap-4">
+              <span className="relative text-espresso/70">
+                <BellIcon width={20} height={20} />
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-terracotta"
+                />
+              </span>
+              <span className="text-sm font-medium text-terracotta">
+                {jobs.length} matching jobs
+              </span>
+            </div>
           </header>
+
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <StatCard
+              icon={<BriefcaseIcon width={20} height={20} />}
+              value="128"
+              label="Jobs found"
+            />
+            <StatCard
+              icon={<TargetIcon width={20} height={20} />}
+              value={highMatches}
+              label="High matches"
+            />
+            <StatCard
+              icon={<ZapIcon width={20} height={20} />}
+              value={
+                <>
+                  Auto-apply
+                  <span
+                    aria-hidden="true"
+                    className={`h-2 w-2 rounded-full ${
+                      autoApply.status === "running"
+                        ? "bg-success"
+                        : "bg-espresso/25"
+                    }`}
+                  />
+                </>
+              }
+              label={autoApply.status === "running" ? "Active" : "Inactive"}
+            />
+            <StatCard
+              icon={<ClockIcon width={20} height={20} />}
+              value={`${autoApply.dailyLimit} / day`}
+              label="Max auto-applies"
+            />
+            <StatCard
+              icon={<BookmarkIcon width={20} height={20} />}
+              value="24"
+              label="Rules saved"
+            />
+          </div>
 
           <AutoApplyPanel
             status={autoApply.status}
