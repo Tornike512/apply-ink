@@ -6,25 +6,30 @@ import type { Job } from "@/lib/jobs";
 type JobCardProps = {
   job: Job;
   selected?: boolean;
-  onSelect: () => void;
+  onSelect?: () => void;
 };
 
 export function JobCard({ job, selected = false, onSelect }: JobCardProps) {
+  const interactive = Boolean(onSelect);
   return (
     <Container
       variant="card"
-      role="button"
-      tabIndex={0}
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
       onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className={`flex cursor-pointer flex-wrap items-start gap-4 p-4 transition-colors hover:border-terracotta ${
-        selected ? "border-terracotta ring-1 ring-terracotta" : ""
-      }`}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect?.();
+              }
+            }
+          : undefined
+      }
+      className={`flex flex-wrap items-start gap-4 p-4 transition-colors ${
+        interactive ? "cursor-pointer hover:border-terracotta" : ""
+      } ${selected ? "border-terracotta ring-1 ring-terracotta" : ""}`}
     >
       <CompanyAvatar name={job.company} />
       <div className="min-w-0 flex-1">
