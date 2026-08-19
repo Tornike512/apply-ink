@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { AUTO_APPLY_RULES } from "@/lib/auto-apply";
+import { isWorkFromAnywhere } from "@/lib/job-eligibility";
 import {
   isRefreshing,
   isStale,
@@ -26,7 +27,8 @@ export async function GET(request: Request) {
     after(() => refreshStore());
   }
 
-  const all = store?.jobs ?? [];
+  // Also filter older cache files created before worldwide-only harvesting.
+  const all = (store?.jobs ?? []).filter(isWorkFromAnywhere);
   const filtered = q
     ? all.filter(
         (job) =>

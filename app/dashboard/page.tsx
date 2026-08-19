@@ -65,7 +65,9 @@ export default function DashboardPage() {
         <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
           <header className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-bold text-espresso">
-              {activeNav === "Applications" ? "Applications" : "Remote Jobs"}
+              {activeNav === "Applications"
+                ? "Applications"
+                : "Work From Anywhere Jobs"}
             </h1>
             <div className="flex items-center gap-4">
               <span className="relative text-espresso/70">

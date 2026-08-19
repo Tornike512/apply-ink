@@ -3,7 +3,7 @@ import { Button } from "@/components/button";
 
 const FILTERS = [
   { name: "Role", icon: null, options: ["All roles", "Frontend", "Full-stack", "Backend", "Mobile"] },
-  { name: "Region", icon: MapPinIcon, options: ["Anywhere", "Europe", "US timezones", "Worldwide"] },
+  { name: "Region", icon: MapPinIcon, options: ["Anywhere"] },
   { name: "Salary", icon: DollarSignIcon, options: ["Any salary", "$100k+", "$120k+", "$150k+"] },
 ];
 
