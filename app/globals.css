@@ -25,6 +25,22 @@
   --color-success: var(--success);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 2px;
+  --radius-xl: 6px;
+  --radius-2xl: 10px;
+  --radius-3xl: 18px;
+  --radius-4xl: 26px;
+}
+
+.rounded {
+  border-radius: 0;
+}
+
+.rounded-full {
+  border-radius: max(0px, calc(50% - 6px));
 }
 
 body {
