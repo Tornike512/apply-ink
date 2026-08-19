@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { isWorkFromAnywhere } from "@/lib/job-eligibility";
 import type { Job } from "@/lib/jobs";
 import boards from "./ats-boards.json";
 
@@ -51,16 +52,24 @@ function decodeEntities(s: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;/g, "'")
     .replace(/&hellip;/g, "…")
-    .replace(/&nbsp;/g, " ");
+    .replace(/&nbsp;/g, " ")
+    .replace(/&apos;/g, "'")
+    .replace(/&ndash;/g, "–")
+    .replace(/&mdash;/g, "—")
+    .replace(/&#(\d+);/g, (_, code: string) =>
+      String.fromCodePoint(Number(code))
+    )
+    .replace(/&#x([\da-f]+);/gi, (_, code: string) =>
+      String.fromCodePoint(Number.parseInt(code, 16))
+    );
 }
 
-function stripHtml(html: string, max = 700): string {
-  const text = decodeEntities(
-    html
-      .replace(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-  );
+function stripHtml(html: string, max = 2000): string {
+  const decoded = decodeEntities(decodeEntities(html));
+  const text = decoded
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
 }
 
@@ -129,8 +138,13 @@ async function getText(url: string): Promise<string> {
 }
 
 function rssTag(block: string, name: string): string | undefined {
-  const match = block.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`));
-  return match?.[1];
+  const match = block.match(
+    new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, "i")
+  );
+  return match?.[1]
+    .replace(/^<!\[CDATA\[/, "")
+    .replace(/\]\]>$/, "")
+    .trim();
 }
 
 async function pooled<T, R>(
@@ -171,9 +185,9 @@ type RemotiveJob = {
 };
 
 async function fetchRemotive(): Promise<Normalized[]> {
-  const data = (await getJson(
-    "https://remotive.com/api/remote-jobs?limit=100"
-  )) as { jobs?: RemotiveJob[] };
+  const data = (await getJson("https://remotive.com/api/remote-jobs")) as {
+    jobs?: RemotiveJob[];
+  };
   return (data.jobs ?? []).map((j) => ({
     id: `remotive-${j.id}`,
     title: j.title,
@@ -205,7 +219,7 @@ type ArbeitnowJob = {
 
 async function fetchArbeitnow(): Promise<Normalized[]> {
   const pages = await Promise.all(
-    [1, 2, 3, 4, 5, 6, 7, 8].map((page) =>
+    Array.from({ length: 20 }, (_, index) => index + 1).map((page) =>
       getJson(`https://www.arbeitnow.com/api/job-board-api?page=${page}`).catch(
         () => ({})
       )
@@ -246,7 +260,7 @@ type JobicyJob = {
 
 async function fetchJobicy(): Promise<Normalized[]> {
   const data = (await getJson(
-    "https://jobicy.com/api/v2/remote-jobs?count=50"
+    "https://jobicy.com/api/v2/remote-jobs?count=100"
   )) as { jobs?: JobicyJob[] };
   return (data.jobs ?? []).map((j) => ({
     id: `jobicy-${j.id}`,
@@ -315,6 +329,7 @@ const WWR_CATEGORIES = [
   "remote-full-stack-programming-jobs",
   "remote-front-end-programming-jobs",
   "remote-back-end-programming-jobs",
+  "all-other-remote-jobs",
 ];
 
 async function fetchWeWorkRemotely(): Promise<Normalized[]> {
@@ -353,6 +368,119 @@ async function fetchWeWorkRemotely(): Promise<Normalized[]> {
     });
 }
 
+type PublicRssFeed = {
+  url: string;
+  source: string;
+  idPrefix: string;
+  category?: string;
+  worldwide?: boolean;
+};
+
+const REMOTE_FIRST_RSS_CATEGORIES = [
+  "software-development",
+  "python",
+  "react",
+  "golang",
+  "ai",
+  "cybersecurity",
+  "customer-service",
+  "design",
+  "marketing",
+  "sales",
+  "product",
+  "data-science",
+  "devops",
+  "qa",
+  "writing",
+  "business",
+  "data",
+  "finance-legal",
+  "hr",
+  "project-management",
+  "contract",
+  "full-time",
+  "part-time",
+  "entry-level",
+  "senior",
+];
+
+const REAL_WORK_FROM_ANYWHERE_RSS_CATEGORIES = [
+  "remote-fullstack-jobs",
+  "remote-frontend-jobs",
+  "remote-backend-jobs",
+  "remote-software-developer-jobs",
+  "remote-design-jobs",
+  "remote-devops-and-sysadmin-jobs",
+  "remote-management-and-finance-jobs",
+  "remote-product-jobs",
+  "remote-customer-support-jobs",
+  "remote-sales-and-marketing-jobs",
+];
+
+const PUBLIC_RSS_FEEDS: PublicRssFeed[] = [
+  {
+    url: "https://www.realworkfromanywhere.com/rss.xml",
+    source: "Real Work From Anywhere",
+    idPrefix: "rwfa",
+    worldwide: true,
+  },
+  ...REAL_WORK_FROM_ANYWHERE_RSS_CATEGORIES.map((category) => ({
+    url: `https://www.realworkfromanywhere.com/${category}/rss.xml`,
+    source: "Real Work From Anywhere",
+    idPrefix: "rwfa",
+    category,
+    worldwide: true,
+  })),
+  {
+    url: "https://jobscollider.com/remote-jobs.rss",
+    source: "JobsCollider",
+    idPrefix: "jobscollider",
+  },
+  ...REMOTE_FIRST_RSS_CATEGORIES.map((category) => ({
+    url: `https://remotefirstjobs.com/rss/jobs/${category}.rss`,
+    source: "Remote First Jobs",
+    idPrefix: "remotefirst",
+    category,
+  })),
+];
+
+async function fetchPublicRssFeeds(): Promise<Normalized[]> {
+  return pooled(PUBLIC_RSS_FEEDS, 4, async (feed) => {
+    const xml = await getText(feed.url);
+    return xml
+      .split(/<item(?:\s[^>]*)?>/i)
+      .slice(1)
+      .map((block) => block.split(/<\/item>/i)[0])
+      .map((item) => {
+        const rawTitle = stripHtml(rssTag(item, "title") ?? "", 200);
+        const author = stripHtml(rssTag(item, "author") ?? "", 100);
+        const atIndex = rawTitle.lastIndexOf(" at ");
+        const company =
+          author || (atIndex > 0 ? rawTitle.slice(atIndex + 4) : feed.source);
+        const title = atIndex > 0 ? rawTitle.slice(0, atIndex) : rawTitle;
+        const url = decodeEntities(
+          rssTag(item, "link") ?? rssTag(item, "guid") ?? feed.url
+        );
+        const guid = decodeEntities(rssTag(item, "guid") ?? url);
+        const pub = rssTag(item, "pubDate");
+
+        return {
+          id: `${feed.idPrefix}-${hashString(guid)}`,
+          title: title || "Untitled role",
+          company,
+          location: feed.worldwide ? "Remote — Worldwide" : "Remote",
+          salary: undefined,
+          tags: feed.category ? [titleCase(feed.category)] : [],
+          ...datePair(pub ? Date.parse(pub) : null),
+          description: stripHtml(rssTag(item, "description") ?? ""),
+          source: feed.source,
+          url,
+          logoUrl: undefined,
+        };
+      });
+  });
+}
+
 type HnHit = {
   objectID: string;
   title?: string;
@@ -375,7 +503,6 @@ async function fetchHackerNews(): Promise<Normalized[]> {
   return (comments.hits ?? [])
     .filter((h) => String(h.parent_id) === thread.objectID && h.comment_text)
     .filter((h) => /remote/i.test(h.comment_text ?? ""))
-    .slice(0, 150)
     .map((h) => {
       const firstLine = stripHtml((h.comment_text ?? "").split(/<p>/i)[0], 200);
       const segs = firstLine
@@ -509,9 +636,9 @@ type MuseJob = {
 
 async function fetchTheMuse(): Promise<Normalized[]> {
   const pages = await Promise.all(
-    Array.from({ length: 20 }, (_, i) =>
+    Array.from({ length: 50 }, (_, page) =>
       getJson(
-        `https://www.themuse.com/api/public/jobs?location=Flexible%20%2F%20Remote&page=${i + 1}`
+        `https://www.themuse.com/api/public/jobs?location=Flexible%20%2F%20Remote&page=${page}`
       ).catch(() => ({}))
     )
   );
@@ -541,8 +668,12 @@ async function fetchTheMuse(): Promise<Normalized[]> {
 // cached to their own side file and refetched at most every 48h.
 const JSEARCH_CACHE = path.join(process.cwd(), "data", "jsearch-cache.json");
 const JSEARCH_TTL_MS = 48 * 3_600_000;
-const JSEARCH_QUERIES = ["remote software developer", "remote frontend engineer"];
-const JSEARCH_PAGES_PER_QUERY = 5;
+const JSEARCH_CACHE_VERSION = 2;
+const JSEARCH_QUERIES = [
+  "work from anywhere software developer",
+  "worldwide remote frontend engineer",
+];
+const JSEARCH_PAGES_PER_QUERY = 6;
 
 type JSearchJob = {
   job_id: string;
@@ -570,10 +701,16 @@ async function fetchJSearch(): Promise<Normalized[]> {
   try {
     const raw = await fs.readFile(JSEARCH_CACHE, "utf8");
     const cached = JSON.parse(raw) as {
+      version?: number;
       fetchedAt: number;
       jobs: Normalized[];
     };
-    if (Date.now() - cached.fetchedAt < JSEARCH_TTL_MS) return cached.jobs;
+    if (
+      cached.version === JSEARCH_CACHE_VERSION &&
+      Date.now() - cached.fetchedAt < JSEARCH_TTL_MS
+    ) {
+      return cached.jobs;
+    }
   } catch {
     // no cache yet
   }
@@ -584,7 +721,6 @@ async function fetchJSearch(): Promise<Normalized[]> {
     for (let page = 0; page < JSEARCH_PAGES_PER_QUERY; page++) {
       const params = new URLSearchParams({
         query,
-        country: "us",
         date_posted: "month",
         work_from_home: "true",
       });
@@ -610,9 +746,13 @@ async function fetchJSearch(): Promise<Normalized[]> {
           id: `jsearch-${j.job_id.slice(0, 28)}`,
           title: j.job_title ?? "Untitled role",
           company: j.employer_name ?? "Unknown company",
-          location: j.job_location
-            ? `Remote — ${j.job_location}`
-            : "Remote — US",
+          // JSearch sometimes labels region-limited roles as "Anywhere".
+          // Require a strong worldwide phrase in the description instead.
+          location:
+            j.job_location &&
+            !/\b(?:anywhere|worldwide|global(?:ly)?)\b/i.test(j.job_location)
+              ? `Remote — ${j.job_location}`
+              : "Remote",
           salary:
             j.job_salary_string ??
             (j.job_min_salary && j.job_max_salary
@@ -638,7 +778,11 @@ async function fetchJSearch(): Promise<Normalized[]> {
   await fs.mkdir(path.dirname(JSEARCH_CACHE), { recursive: true });
   await fs.writeFile(
     JSEARCH_CACHE,
-    JSON.stringify({ fetchedAt: Date.now(), jobs: out })
+    JSON.stringify({
+      version: JSEARCH_CACHE_VERSION,
+      fetchedAt: Date.now(),
+      jobs: out,
+    })
   );
   return out;
 }
@@ -649,6 +793,7 @@ type GreenhouseJob = {
   id: number;
   title: string;
   absolute_url: string;
+  content?: string;
   updated_at?: string;
   first_published?: string;
   location?: { name?: string };
@@ -659,7 +804,7 @@ async function fetchGreenhouseBoard(board: {
   slug: string;
 }): Promise<Normalized[]> {
   const data = (await getJson(
-    `https://boards-api.greenhouse.io/v1/boards/${board.slug}/jobs`
+    `https://boards-api.greenhouse.io/v1/boards/${board.slug}/jobs?content=true`
   )) as { jobs?: GreenhouseJob[] };
   return (data.jobs ?? [])
     .filter((j) => (j.location?.name ?? "").toLowerCase().includes("remote"))
@@ -677,7 +822,7 @@ async function fetchGreenhouseBoard(board: {
             ? Date.parse(j.updated_at)
             : null
       ),
-      description: "",
+      description: stripHtml(j.content ?? ""),
       source: "Greenhouse",
       url: j.absolute_url,
       logoUrl: undefined,
@@ -723,57 +868,50 @@ async function fetchAshbyBoard(board: { slug: string }): Promise<Normalized[]> {
 }
 
 type WorkableJob = {
-  id?: number;
-  shortcode?: string;
-  title?: string;
-  remote?: boolean;
-  workplace?: string;
-  published?: string;
-  department?: string[];
-  location?: { country?: string; city?: string };
+  shortcode: string;
+  title: string;
+  telecommuting?: boolean;
+  published_on?: string;
+  department?: string;
+  country?: string;
+  locations?: { country?: string }[];
+  description?: string;
+  url?: string;
 };
 
 async function fetchWorkableBoard(board: {
   slug: string;
 }): Promise<Normalized[]> {
-  const res = await fetch(
-    `https://apply.workable.com/api/v3/accounts/${board.slug}/jobs`,
-    {
-      method: "POST",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: "",
-        location: [],
-        department: [],
-        worktype: [],
-        remote: [],
-      }),
-      cache: "no-store",
-    }
-  );
-  if (!res.ok) throw new Error(`workable/${board.slug} -> ${res.status}`);
-  const data = (await res.json()) as { results?: WorkableJob[] };
-  return (data.results ?? [])
-    .filter((j) => j.remote === true || j.workplace === "remote")
-    .map((j) => ({
-      id: `workable-${board.slug}-${j.id ?? j.shortcode}`,
-      title: j.title ?? "Untitled role",
-      company: titleCase(board.slug),
-      location: j.location?.country
-        ? `Remote — ${j.location.country}`
-        : "Remote",
-      salary: undefined,
-      tags: (j.department ?? []).slice(0, 2),
-      ...datePair(j.published ? Date.parse(j.published) : null),
-      description: "",
-      source: "Workable",
-      url: `https://apply.workable.com/${board.slug}/j/${j.shortcode ?? ""}`,
-      logoUrl: undefined,
-    }));
+  const data = (await getJson(
+    `https://apply.workable.com/api/v1/widget/accounts/${board.slug}?details=true`
+  )) as { jobs?: WorkableJob[] };
+  return (data.jobs ?? [])
+    .filter((j) => j.telecommuting === true)
+    .map((j) => {
+      const countries = [
+        ...new Set(
+          [j.country, ...(j.locations ?? []).map((location) => location.country)]
+            .filter((country): country is string => Boolean(country))
+        ),
+      ];
+      return {
+        id: `workable-${board.slug}-${j.shortcode}`,
+        title: j.title,
+        company: titleCase(board.slug),
+        location: countries.length
+          ? `Remote — ${countries.slice(0, 3).join(", ")}`
+          : "Remote",
+        salary: undefined,
+        tags: j.department ? [j.department] : [],
+        ...datePair(j.published_on ? Date.parse(j.published_on) : null),
+        description: stripHtml(j.description ?? ""),
+        source: "Workable",
+        url:
+          j.url ??
+          `https://apply.workable.com/${board.slug}/j/${j.shortcode}`,
+        logoUrl: undefined,
+      };
+    });
 }
 
 type LeverJob = {
@@ -823,33 +961,70 @@ type SmartRecruitersJob = {
   experienceLevel?: { label?: string };
 };
 
+type SmartRecruitersJobDetail = SmartRecruitersJob & {
+  postingUrl?: string;
+  jobAd?: {
+    sections?: Record<string, { text?: string }>;
+  };
+};
+
 async function fetchSmartRecruitersBoard(board: {
   slug: string;
 }): Promise<Normalized[]> {
-  const data = (await getJson(
-    `https://api.smartrecruiters.com/v1/companies/${board.slug}/postings?limit=100`
-  )) as { content?: SmartRecruitersJob[] };
-  return (data.content ?? [])
-    .filter((j) => j.location?.remote === true)
-    .map((j) => ({
-      id: `smart-${board.slug}-${j.id}`,
-      title: j.name,
-      company: j.company?.name || titleCase(board.slug),
-      location: j.location?.fullLocation
-        ? `Remote — ${j.location.fullLocation}`
-        : "Remote",
-      salary: undefined,
-      tags: [j.function?.label, j.experienceLevel?.label].filter(
-        (t): t is string => Boolean(t)
-      ),
-      ...datePair(
-        j.releasedDate ? Date.parse(j.releasedDate) : null
-      ),
-      description: "",
-      source: "SmartRecruiters",
-      url: `https://jobs.smartrecruiters.com/${j.company?.identifier ?? board.slug}/${j.id}`,
-      logoUrl: undefined,
-    }));
+  type Page = {
+    content?: SmartRecruitersJob[];
+    totalFound?: number;
+  };
+  const first = (await getJson(
+    `https://api.smartrecruiters.com/v1/companies/${board.slug}/postings?limit=100&offset=0`
+  )) as Page;
+  const pageCount = Math.min(10, Math.ceil((first.totalFound ?? 0) / 100));
+  const remaining = await Promise.all(
+    Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) =>
+      getJson(
+        `https://api.smartrecruiters.com/v1/companies/${board.slug}/postings?limit=100&offset=${(index + 1) * 100}`
+      ).catch(() => ({}))
+    )
+  );
+  const remoteJobs = [
+    ...(first.content ?? []),
+    ...remaining.flatMap((page) => (page as Page).content ?? []),
+  ].filter((job) => job.location?.remote === true);
+
+  return pooled(remoteJobs, 6, async (job) => {
+    let detail: SmartRecruitersJobDetail = job;
+    try {
+      detail = (await getJson(
+        `https://api.smartrecruiters.com/v1/companies/${board.slug}/postings/${job.id}`
+      )) as SmartRecruitersJobDetail;
+    } catch {
+      // Keep the list result when a details request is unavailable.
+    }
+    const description = Object.values(detail.jobAd?.sections ?? {})
+      .map((section) => section.text ?? "")
+      .join(" ");
+    return [
+      {
+        id: `smart-${board.slug}-${job.id}`,
+        title: job.name,
+        company: job.company?.name || titleCase(board.slug),
+        location: job.location?.fullLocation
+          ? `Remote — ${job.location.fullLocation}`
+          : "Remote",
+        salary: undefined,
+        tags: [job.function?.label, job.experienceLevel?.label].filter(
+          (tag): tag is string => Boolean(tag)
+        ),
+        ...datePair(job.releasedDate ? Date.parse(job.releasedDate) : null),
+        description: stripHtml(description),
+        source: "SmartRecruiters",
+        url:
+          detail.postingUrl ??
+          `https://jobs.smartrecruiters.com/${job.company?.identifier ?? board.slug}/${job.id}`,
+        logoUrl: undefined,
+      },
+    ];
+  });
 }
 
 // ---------- harvest ----------
@@ -868,6 +1043,7 @@ export async function harvestAll(): Promise<Harvest> {
     jobicy: fetchJobicy,
     remoteok: fetchRemoteOk,
     weworkremotely: fetchWeWorkRemotely,
+    publicrss: fetchPublicRssFeeds,
     hackernews: fetchHackerNews,
     himalayas: fetchHimalayas,
     workingnomads: fetchWorkingNomads,
@@ -907,7 +1083,10 @@ export async function harvestAll(): Promise<Harvest> {
   const seen = new Set<string>();
   const jobs: Job[] = [];
   for (const job of all) {
-    // max one month old; keep the rare job with no parseable date
+    // A plain "Remote" label can still hide a country or timezone limit.
+    // Keep only roles that clearly say they can be done from anywhere.
+    if (!isWorkFromAnywhere(job)) continue;
+    // Max 31 days old; keep the rare job with no parseable date.
     if (job.postedAt !== null && job.postedAt < freshCutoff) continue;
     const key = `${job.company.toLowerCase()}|${job.title.toLowerCase()}`;
     if (seen.has(key)) continue;

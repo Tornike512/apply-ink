@@ -100,13 +100,18 @@ const WORKABLE = [
 
 LEVER.push(
   "mycelium", "alan", "anomali", "appen-2", "circonus", "findem", "iterative",
-  "lifen", "medium", "myollie", "skillshare", "taplytics", "theoremonellc", "voxy"
+  "lifen", "medium", "myollie", "skillshare", "taplytics", "theoremonellc", "voxy",
+  "superside", "offchainlabs", "happyco", "raya", "collabora", "kinsta", "wishpond"
 );
 GREENHOUSE.push(
   "airbyte", "consensys", "impala", "influxdb", "modernhealth", "recharge",
-  "truelogic", "zupinnovation"
+  "truelogic", "zupinnovation", "alpaca", "counterpart", "bobtail", "assemblyai"
 );
-ASHBY.push("deel", "kindred", "luxor", "sketch");
+ASHBY.push(
+  "deel", "kindred", "luxor", "sketch", "livekit", "camunda", "atticus",
+  "parity", "paradox", "chilipiper"
+);
+WORKABLE.push("passionio");
 
 const uniq = (list) => [...new Set(list)];
 const GH_ALL = uniq([...GREENHOUSE, ...GENERIC]);
@@ -139,41 +144,14 @@ async function probe(url, extract) {
   }
 }
 
-async function probePost(url, body, extract) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6000);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return 0;
-    return extract(await res.json());
-  } catch {
-    return 0;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 const TASKS = [
   ...WORKABLE_ALL.map((slug) => ({
     kind: "workable",
     slug,
     run: () =>
-      probePost(
-        `https://apply.workable.com/api/v3/accounts/${slug}/jobs`,
-        { query: "", location: [], department: [], worktype: [], remote: [] },
-        (d) =>
-          (d.results ?? []).filter(
-            (j) => j.remote === true || j.workplace === "remote"
-          ).length
+      probe(
+        `https://apply.workable.com/api/v1/widget/accounts/${slug}?details=true`,
+        (d) => (d.jobs ?? []).filter((j) => j.telecommuting === true).length
       ),
   })),
   ...GH_ALL.map((slug) => ({

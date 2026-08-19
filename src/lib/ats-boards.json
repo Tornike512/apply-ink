@@ -383,6 +383,22 @@
     {
       "slug": "zenrows",
       "remoteJobs": 1
+    },
+    {
+      "slug": "alpaca",
+      "remoteJobs": 57
+    },
+    {
+      "slug": "counterpart",
+      "remoteJobs": 10
+    },
+    {
+      "slug": "bobtail",
+      "remoteJobs": 3
+    },
+    {
+      "slug": "assemblyai",
+      "remoteJobs": 2
     }
   ],
   "lever": [
@@ -396,6 +412,34 @@
     },
     {
       "slug": "findem",
+      "remoteJobs": 2
+    },
+    {
+      "slug": "superside",
+      "remoteJobs": 15
+    },
+    {
+      "slug": "offchainlabs",
+      "remoteJobs": 13
+    },
+    {
+      "slug": "happyco",
+      "remoteJobs": 10
+    },
+    {
+      "slug": "raya",
+      "remoteJobs": 6
+    },
+    {
+      "slug": "collabora",
+      "remoteJobs": 5
+    },
+    {
+      "slug": "kinsta",
+      "remoteJobs": 3
+    },
+    {
+      "slug": "wishpond",
       "remoteJobs": 2
     }
   ],
@@ -771,6 +815,30 @@
     {
       "slug": "raft",
       "remoteJobs": 1
+    },
+    {
+      "slug": "livekit",
+      "remoteJobs": 35
+    },
+    {
+      "slug": "camunda",
+      "remoteJobs": 15
+    },
+    {
+      "slug": "atticus",
+      "remoteJobs": 10
+    },
+    {
+      "slug": "parity",
+      "remoteJobs": 6
+    },
+    {
+      "slug": "paradox",
+      "remoteJobs": 5
+    },
+    {
+      "slug": "chilipiper",
+      "remoteJobs": 3
     }
   ],
   "smartrecruiters": [
@@ -795,6 +863,10 @@
     {
       "slug": "remotebase",
       "remoteJobs": 6
+    },
+    {
+      "slug": "passionio",
+      "remoteJobs": 5
     }
   ]
 }
