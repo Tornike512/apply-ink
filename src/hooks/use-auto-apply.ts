@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ApplicationAttempt } from "@/lib/applications";
 import {
   AUTO_APPLY_RULES,
   decideJob,
   type ActivityEntry,
+  type ActivityStatus,
   type AutoApplyStatus,
 } from "@/lib/auto-apply";
 import type { Job } from "@/lib/jobs";
@@ -27,7 +29,7 @@ function writeUsedToday(count: number) {
       JSON.stringify({ date: new Date().toDateString(), count })
     );
   } catch {
-    // storage unavailable (private mode) — limit still enforced in memory
+    // The in-memory limit still works when browser storage is unavailable.
   }
 }
 
@@ -39,23 +41,33 @@ function timestamp(): string {
   });
 }
 
-export function useAutoApply(jobs: Job[], onApplied?: (job: Job) => void) {
+export function useAutoApply(
+  jobs: Job[],
+  onApply?: (job: Job) => Promise<ApplicationAttempt>
+) {
   const [status, setStatus] = useState<AutoApplyStatus>("idle");
   const [log, setLog] = useState<ActivityEntry[]>([]);
   const [usedToday, setUsedToday] = useState(0);
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
-  const onAppliedRef = useRef(onApplied);
-  onAppliedRef.current = onApplied;
+  const [tick, setTick] = useState(0);
+  const onApplyRef = useRef(onApply);
 
   const queueRef = useRef<Job[]>([]);
   const indexRef = useRef(0);
   const usedRef = useRef(0);
-  const appliedIdsRef = useRef(new Set<string>());
+  const startedIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
-    const count = readUsedToday();
-    usedRef.current = count;
-    setUsedToday(count);
+    onApplyRef.current = onApply;
+  }, [onApply]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const count = readUsedToday();
+      usedRef.current = count;
+      setUsedToday(count);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const start = useCallback(() => {
@@ -66,6 +78,7 @@ export function useAutoApply(jobs: Job[], onApplied?: (job: Job) => void) {
     setLog([]);
     setCurrentJob(jobs[0] ?? null);
     setStatus("running");
+    setTick((value) => value + 1);
   }, [jobs]);
 
   const stop = useCallback(() => {
@@ -77,13 +90,15 @@ export function useAutoApply(jobs: Job[], onApplied?: (job: Job) => void) {
     usedRef.current = 0;
     setUsedToday(0);
     writeUsedToday(0);
-    appliedIdsRef.current.clear();
+    startedIdsRef.current.clear();
     setStatus("idle");
   }, []);
 
   useEffect(() => {
     if (status !== "running") return;
-    const timer = setInterval(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      if (cancelled) return;
       if (usedRef.current >= AUTO_APPLY_RULES.dailyLimit) {
         setLog((entries) => [
           {
@@ -91,7 +106,7 @@ export function useAutoApply(jobs: Job[], onApplied?: (job: Job) => void) {
             time: timestamp(),
             title: "Daily limit reached",
             status: "limit",
-            note: `${AUTO_APPLY_RULES.dailyLimit} applications sent today — auto-apply resumes tomorrow`,
+            note: `${AUTO_APPLY_RULES.dailyLimit} application actions prepared today`,
           },
           ...entries,
         ]);
@@ -107,32 +122,57 @@ export function useAutoApply(jobs: Job[], onApplied?: (job: Job) => void) {
         return;
       }
       indexRef.current += 1;
-      setCurrentJob(queueRef.current[indexRef.current] ?? null);
 
-      const decision = decideJob(job, appliedIdsRef.current.has(job.id));
-      if (decision.status === "applied") {
-        appliedIdsRef.current.add(job.id);
-        usedRef.current += 1;
-        setUsedToday(usedRef.current);
-        writeUsedToday(usedRef.current);
-        onAppliedRef.current?.(job);
+      const decision = decideJob(job, startedIdsRef.current.has(job.id));
+      let activityStatus: ActivityStatus =
+        decision.status === "skipped" ? "skipped" : "error";
+      let note = decision.note;
+
+      if (decision.status === "ready") {
+        try {
+          if (!onApplyRef.current) throw new Error("Application handler unavailable");
+          const attempt = await onApplyRef.current(job);
+          activityStatus =
+            attempt.application.status === "submitted"
+              ? "applied"
+              : attempt.application.status === "needs_user"
+                ? "needs_user"
+                : "error";
+          note = attempt.note;
+          startedIdsRef.current.add(job.id);
+          usedRef.current += 1;
+          setUsedToday(usedRef.current);
+          writeUsedToday(usedRef.current);
+        } catch (error) {
+          activityStatus = "error";
+          note = error instanceof Error ? error.message : "Application failed";
+        }
       }
 
+      if (cancelled) return;
       setLog((entries) => [
         {
           id: `${job.id}-${indexRef.current}`,
           time: timestamp(),
           title: job.title,
           company: job.company,
-          status: decision.status,
-          note: decision.note,
+          status: activityStatus,
+          note,
         },
         ...entries,
       ]);
+
+      const nextJob = queueRef.current[indexRef.current] ?? null;
+      setCurrentJob(nextJob);
+      if (nextJob) setTick((value) => value + 1);
+      else setStatus("done");
     }, AUTO_APPLY_RULES.delayMs);
 
-    return () => clearInterval(timer);
-  }, [status]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [status, tick]);
 
   return {
     status,

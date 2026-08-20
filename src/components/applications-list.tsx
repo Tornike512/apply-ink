@@ -6,19 +6,22 @@ import type { Application } from "@/lib/applications";
 
 type ApplicationsListProps = {
   applications: Application[];
-  onRemove: (jobId: string) => void;
+  onRemove: (id: string) => void | Promise<void>;
+  onContinue: (application: Application) => void | Promise<unknown>;
+  onMarkSubmitted: (id: string) => void | Promise<unknown>;
 };
 
 export function ApplicationsList({
   applications,
   onRemove,
+  onContinue,
+  onMarkSubmitted,
 }: ApplicationsListProps) {
   if (applications.length === 0) {
     return (
       <Container variant="card" className="p-8 text-center">
         <p className="text-sm text-espresso/70">
-          No applications yet. Run Auto-apply, or open a job and hit “Apply
-          with AI”.
+          No applications yet. Open a job and choose Apply with AI.
         </p>
       </Container>
     );
@@ -26,46 +29,85 @@ export function ApplicationsList({
 
   return (
     <div className="flex flex-col gap-3">
-      {applications.map(({ job, appliedAt, via }) => (
-        <Container
-          key={job.id}
-          variant="card"
-          className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4"
-        >
-          <CompanyAvatar
-            name={job.company}
-            color={job.logoColor}
-            logoUrl={job.logoUrl}
-          />
-          <div className="min-w-0 flex-1 basis-52">
-            <h3 className="truncate text-base font-semibold text-espresso">
-              {job.title}
-            </h3>
-            <p className="truncate text-sm text-espresso/70">
-              {job.company} · applied {new Date(appliedAt).toLocaleDateString()}
-            </p>
-          </div>
-          <Badge variant="success">Applied</Badge>
-          <Badge variant="sand">{via === "auto" ? "Auto" : "Manual"}</Badge>
-          {job.url !== "#" && (
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-terracotta underline underline-offset-2 hover:text-sienna"
-            >
-              View posting
-            </a>
-          )}
-          <Button
-            variant="secondary"
-            onClick={() => onRemove(job.id)}
-            className="px-3 py-1.5 text-xs"
+      {applications.map((application) => {
+        const { job } = application;
+        const needsUser = application.status === "needs_user";
+        const date = new Date(
+          application.submittedAt ?? application.updatedAt
+        ).toLocaleDateString();
+        return (
+          <Container
+            key={application.id}
+            variant="card"
+            className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4"
           >
-            Withdraw
-          </Button>
-        </Container>
-      ))}
+            <CompanyAvatar
+              name={job.company}
+              color={job.logoColor}
+              logoUrl={job.logoUrl}
+            />
+            <div className="min-w-0 flex-1 basis-64">
+              <h3 className="truncate text-base font-semibold text-espresso">
+                {job.title}
+              </h3>
+              <p className="truncate text-sm text-espresso/70">
+                {job.company} - {needsUser ? "updated" : "submitted"} {date}
+              </p>
+              {application.needsUserReason && (
+                <p className="mt-1 line-clamp-2 text-xs text-sienna">
+                  {application.needsUserReason}
+                </p>
+              )}
+            </div>
+            <Badge variant={needsUser ? "sienna" : "success"}>
+              {needsUser ? "Needs you" : "Submitted"}
+            </Badge>
+            <Badge variant="sand">
+              {application.method === "ats_api" ? "ATS API" : "Assisted"}
+            </Badge>
+            {application.tailoredResumeFileName && (
+              <>
+                <Badge variant="success">Tailored CV</Badge>
+                <a
+                  href={`/api/applications?resume=${encodeURIComponent(
+                    application.id
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg border border-sand bg-surface px-3 py-1.5 text-xs font-medium text-terracotta transition-colors hover:bg-sand/30"
+                >
+                  View CV
+                </a>
+              </>
+            )}
+            {needsUser && (
+              <>
+                <Button
+                  variant="primary"
+                  onClick={() => void onContinue(application)}
+                  className="px-3 py-1.5 text-xs"
+                >
+                  Open assisted apply
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => void onMarkSubmitted(application.id)}
+                  className="px-3 py-1.5 text-xs"
+                >
+                  I submitted it
+                </Button>
+              </>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => void onRemove(application.id)}
+              className="px-3 py-1.5 text-xs"
+            >
+              Remove
+            </Button>
+          </Container>
+        );
+      })}
     </div>
   );
 }

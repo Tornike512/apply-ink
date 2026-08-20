@@ -7,6 +7,7 @@ const STATUS_BADGES: Record<
   { label: string; variant: "sand" | "terracotta" | "sienna" }
 > = {
   applied: { label: "Applied", variant: "terracotta" },
+  needs_user: { label: "Needs you", variant: "sienna" },
   skipped: { label: "Skipped", variant: "sand" },
   error: { label: "Error", variant: "sienna" },
   limit: { label: "Limit", variant: "sienna" },

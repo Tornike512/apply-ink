@@ -2,28 +2,32 @@ import { CloseIcon } from "@/assets";
 import { Badge } from "@/components/badge";
 import { Button } from "@/components/button";
 import { Container } from "@/components/container";
+import type { Application } from "@/lib/applications";
 import type { Job } from "@/lib/jobs";
 
 type JobDetailsPanelProps = {
   job: Job;
   onClose: () => void;
   onApply?: () => void;
-  applied?: boolean;
+  application?: Application | null;
 };
 
 export function JobDetailsPanel({
   job,
   onClose,
   onApply,
-  applied = false,
+  application = null,
 }: JobDetailsPanelProps) {
+  const submitted = application?.status === "submitted";
+  const needsUser = application?.status === "needs_user";
+
   return (
     <Container variant="card" className="flex h-full flex-col gap-4 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-espresso">{job.title}</h2>
           <p className="text-sm text-espresso/70">
-            {job.company} · {job.location}
+            {job.company} - {job.location}
           </p>
         </div>
         <Button
@@ -71,14 +75,25 @@ export function JobDetailsPanel({
         )}
       </div>
 
-      <Button
-        variant="primary"
-        onClick={onApply}
-        disabled={applied}
-        className="w-full py-3 text-base disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {applied ? "Applied ✓" : "Apply with AI"}
-      </Button>
+      <div>
+        {needsUser && (
+          <p className="mb-2 text-xs leading-5 text-sienna">
+            Needs you: {application.needsUserReason}
+          </p>
+        )}
+        <Button
+          variant="primary"
+          onClick={onApply}
+          disabled={submitted}
+          className="w-full py-3 text-base disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submitted
+            ? "Submitted"
+            : needsUser
+              ? "Continue application"
+              : "Apply with AI"}
+        </Button>
+      </div>
     </Container>
   );
 }

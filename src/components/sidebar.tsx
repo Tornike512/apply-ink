@@ -1,5 +1,7 @@
+import Link from "next/link";
 import {
   BriefcaseIcon,
+  BellIcon,
   TargetIcon,
   FileTextIcon,
   IdCardIcon,
@@ -13,6 +15,7 @@ const NAV_ITEMS = [
   { label: "Jobs", icon: BriefcaseIcon },
   { label: "Matches", icon: TargetIcon },
   { label: "Applications", icon: FileTextIcon },
+  { label: "Messages", icon: BellIcon },
   { label: "CV Wall", icon: IdCardIcon },
   { label: "Settings", icon: SettingsIcon },
 ];
@@ -20,12 +23,21 @@ const NAV_ITEMS = [
 type SidebarProps = {
   active: string;
   onSelect: (label: string) => void;
+  messageCount?: number;
+  userName?: string;
 };
 
-export function Sidebar({ active, onSelect }: SidebarProps) {
+export function Sidebar({
+  active,
+  onSelect,
+  messageCount = 0,
+  userName = "Apply Ink user",
+}: SidebarProps) {
   return (
     <aside className="flex w-64 shrink-0 flex-col gap-8 border-r border-sand/70 bg-surface p-4">
-      <Logo className="px-2 pt-2" />
+      <Link href="/" aria-label="Apply Ink home">
+        <Logo className="px-2 pt-2" />
+      </Link>
       <nav className="flex flex-col gap-1.5">
         {NAV_ITEMS.map(({ label, icon: Icon }) => (
           <SidebarButton
@@ -33,11 +45,12 @@ export function Sidebar({ active, onSelect }: SidebarProps) {
             label={label}
             icon={<Icon width={18} height={18} />}
             active={active === label}
+            count={label === "Messages" ? messageCount : undefined}
             onClick={() => onSelect(label)}
           />
         ))}
       </nav>
-      <SidebarFooter name="Nikhil" plan="Premium Plan" />
+      <SidebarFooter name={userName} plan="Application profile" />
     </aside>
   );
 }

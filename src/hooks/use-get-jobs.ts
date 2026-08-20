@@ -12,6 +12,7 @@ export type JobsPage = {
   sources: Record<string, number>;
   refreshedAt: number | null;
   refreshing: boolean;
+  personalized: boolean;
 };
 
 async function getJobs(page: number, q: string): Promise<JobsPage> {
@@ -22,13 +23,18 @@ async function getJobs(page: number, q: string): Promise<JobsPage> {
   return res.json();
 }
 
-export function useGetJobs(search: string) {
+export function useGetJobs(
+  search: string,
+  matchVersion: number,
+  enabled = true
+) {
   return useInfiniteQuery({
-    queryKey: ["jobs", search],
+    queryKey: ["jobs", search, matchVersion],
     queryFn: ({ pageParam }) => getJobs(pageParam, search),
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.page * last.pageSize < last.total ? last.page + 1 : undefined,
     staleTime: 5 * 60_000,
+    enabled,
   });
 }

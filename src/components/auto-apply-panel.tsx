@@ -23,6 +23,13 @@ type AutoApplyPanelProps = {
   onStart: () => void;
   onStop: () => void;
   onResetUsage: () => void;
+  onOpenSettings: () => void;
+  cvUploaded: boolean;
+  profileComplete: boolean;
+  tailoringConfigured: boolean;
+  applicationAnswerCount: number;
+  applicationAnswerTotal: number;
+  autoSubmitEnabled: boolean;
   startDisabled?: boolean;
 };
 
@@ -37,11 +44,20 @@ export function AutoApplyPanel({
   onStart,
   onStop,
   onResetUsage,
+  onOpenSettings,
+  cvUploaded,
+  profileComplete,
+  tailoringConfigured,
+  applicationAnswerCount,
+  applicationAnswerTotal,
+  autoSubmitEnabled,
   startDisabled = false,
 }: AutoApplyPanelProps) {
   const [confirming, setConfirming] = useState(false);
   const running = status === "running";
   const atLimit = usedToday >= dailyLimit;
+  const setupBlocked =
+    !cvUploaded || !profileComplete || !tailoringConfigured;
   const hasRun = status === "done" || status === "stopped" || status === "limit-reached";
 
   const pill = running
@@ -50,13 +66,19 @@ export function AutoApplyPanel({
       ? { label: "Paused", variant: "sand" as const, dot: "bg-terracotta" }
       : { label: "Idle", variant: "sand" as const, dot: "bg-espresso/40" };
 
-  const lastRunLine = running
-    ? `${processedCount} of ${totalCount} checked · ${usedToday}/${dailyLimit} today`
-    : hasRun
-      ? "Last run: just now"
-      : atLimit
-        ? `${usedToday}/${dailyLimit} used today — resets tomorrow`
-        : "No runs yet";
+  const lastRunLine = !cvUploaded
+    ? "Upload a CV to unlock auto-apply"
+    : !profileComplete
+      ? "Add your name and email in Settings"
+      : !tailoringConfigured
+        ? "Add OPENAI_API_KEY to enable CV rewriting"
+        : running
+          ? `${processedCount} of ${totalCount} checked · ${usedToday}/${dailyLimit} today`
+          : hasRun
+            ? "Last run: just now"
+            : atLimit
+              ? `${usedToday}/${dailyLimit} used today — resets tomorrow`
+              : "No runs yet";
 
   return (
     <Container
@@ -91,7 +113,9 @@ export function AutoApplyPanel({
 
       <div className="min-w-0 flex-1 lg:border-l lg:border-sand/70 lg:pl-6">
         <p className="max-w-md text-sm leading-6 text-espresso/70">
-          Applies to matching jobs in the background using your saved rules.
+          Rewrites your uploaded CV for each job, validates a one-page PDF, then
+          answers employer forms from your saved profile. The more common questions
+          you answer, the more applications can run without interrupting you.
         </p>
         <hr className="my-3 max-w-md border-sand/60" />
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium text-espresso">
@@ -102,6 +126,10 @@ export function AutoApplyPanel({
           <span className="flex items-center gap-2">
             <CalendarIcon width={18} height={18} className="text-sienna" />
             Max {dailyLimit} per day
+          </span>
+          <span className="flex items-center gap-2">
+            <FileTextIcon width={18} height={18} className="text-sienna" />
+            {applicationAnswerCount}/{applicationAnswerTotal} answers
           </span>
         </div>
       </div>
@@ -122,11 +150,11 @@ export function AutoApplyPanel({
           <Button
             variant="primary"
             onClick={() => setConfirming(true)}
-            disabled={atLimit || startDisabled}
+            disabled={atLimit || startDisabled || setupBlocked}
             className="rounded-xl py-3 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PlayIcon width={18} height={18} />
-            Auto-apply to jobs
+            {!cvUploaded ? "Upload CV first" : "Route matching jobs"}
           </Button>
         )}
         <p aria-live="polite" className="text-center text-xs text-espresso/60">
@@ -140,6 +168,15 @@ export function AutoApplyPanel({
             </>
           )}
         </p>
+        {setupBlocked && !running && (
+          <Button
+            variant="outline"
+            onClick={onOpenSettings}
+            className="self-center px-3 py-1.5 text-xs"
+          >
+            Open Settings
+          </Button>
+        )}
         {atLimit && !running && (
           <Button
             variant="secondary"
@@ -154,8 +191,8 @@ export function AutoApplyPanel({
       <ConfirmDialog
         open={confirming}
         title="Start auto-apply?"
-        description={`This will apply on your behalf to jobs with a ≥${minMatch}% match, up to ${dailyLimit} per day. You can pause it any time.`}
-        confirmLabel="Yes, start applying"
+        description={`This will rewrite and validate a one-page CV for jobs with a ≥${minMatch}% match, up to ${dailyLimit} per day. ${autoSubmitEnabled ? "Complete connected applications may submit automatically." : "Automatic final submission is currently off in Settings."} CAPTCHA and unknown-answer jobs will be saved in Messages.`}
+        confirmLabel="Yes, start routing"
         onConfirm={() => {
           setConfirming(false);
           onStart();

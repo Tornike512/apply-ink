@@ -1,39 +1,113 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  readApplications,
-  saveApplications,
-  type Application,
-} from "@/lib/applications";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Application, ApplicationAttempt } from "@/lib/applications";
 import type { Job } from "@/lib/jobs";
 
+const APPLICATIONS_KEY = ["applications"] as const;
+const LOCAL_HEADERS = { "x-apply-ink": "1" };
+
+async function responseError(response: Response): Promise<Error> {
+  const data = (await response.json().catch(() => ({}))) as { error?: string };
+  return new Error(data.error ?? `Application request failed (${response.status}).`);
+}
+async function loadApplications(): Promise<Application[]> {
+  const response = await fetch("/api/applications", { cache: "no-store" });
+  if (!response.ok) throw await responseError(response);
+  const data = (await response.json()) as { applications: Application[] };
+  return data.applications;
+}
+
+async function startApplication(
+  job: Job,
+  via: Application["via"],
+  openBrowser: boolean
+): Promise<ApplicationAttempt> {
+  const response = await fetch("/api/applications", {
+    method: "POST",
+    headers: { ...LOCAL_HEADERS, "Content-Type": "application/json" },
+    body: JSON.stringify({ job, via, openBrowser }),
+  });
+  if (!response.ok) throw await responseError(response);
+  return response.json() as Promise<ApplicationAttempt>;
+}
+
 export function useApplications() {
-  const [applications, setApplications] = useState<Application[]>([]);
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: APPLICATIONS_KEY,
+    queryFn: loadApplications,
+    retry: false,
+  });
+  const applications = useMemo(() => query.data ?? [], [query.data]);
 
-  useEffect(() => {
-    setApplications(readApplications());
-  }, []);
-
-  const add = useCallback((job: Job, via: Application["via"]) => {
-    setApplications((prev) => {
-      if (prev.some((a) => a.job.id === job.id)) return prev;
-      const next = [{ job, appliedAt: Date.now(), via }, ...prev];
-      saveApplications(next);
-      return next;
-    });
-  }, []);
-
-  const remove = useCallback((jobId: string) => {
-    setApplications((prev) => {
-      const next = prev.filter((a) => a.job.id !== jobId);
-      saveApplications(next);
-      return next;
-    });
-  }, []);
-
-  const has = useCallback(
-    (jobId: string) => applications.some((a) => a.job.id === jobId),
-    [applications]
+  const replaceApplication = useCallback(
+    (application: Application) => {
+      queryClient.setQueryData<Application[]>(APPLICATIONS_KEY, (current = []) => [
+        application,
+        ...current.filter((item) => item.id !== application.id),
+      ]);
+    },
+    [queryClient]
   );
 
-  return { applications, add, remove, has };
+  const add = useCallback(
+    async (job: Job, via: Application["via"], openBrowser = false) => {
+      const attempt = await startApplication(job, via, openBrowser);
+      replaceApplication(attempt.application);
+      return attempt;
+    },
+    [replaceApplication]
+  );
+
+  const continueApplication = useCallback(
+    (application: Application) => add(application.job, application.via, true),
+    [add]
+  );
+
+  const markSubmitted = useCallback(
+    async (id: string) => {
+      const response = await fetch("/api/applications", {
+        method: "PATCH",
+        headers: { ...LOCAL_HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "submitted" }),
+      });
+      if (!response.ok) throw await responseError(response);
+      const data = (await response.json()) as { application: Application };
+      replaceApplication(data.application);
+      return data.application;
+    },
+    [replaceApplication]
+  );
+
+  const remove = useCallback(
+    async (id: string) => {
+      const response = await fetch(`/api/applications?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: LOCAL_HEADERS,
+      });
+      if (!response.ok) throw await responseError(response);
+      queryClient.setQueryData<Application[]>(APPLICATIONS_KEY, (current = []) =>
+        current.filter((application) => application.id !== id)
+      );
+    },
+    [queryClient]
+  );
+
+  const get = useCallback(
+    (jobId: string) => applications.find((item) => item.job.id === jobId) ?? null,
+    [applications]
+  );
+  const has = useCallback((jobId: string) => Boolean(get(jobId)), [get]);
+
+  return {
+    applications,
+    add,
+    continueApplication,
+    markSubmitted,
+    remove,
+    get,
+    has,
+    isLoading: query.isPending,
+    error: query.error,
+  };
 }
