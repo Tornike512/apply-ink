@@ -1,27 +1,22 @@
 import type { Job } from "@/lib/jobs";
 
+export type ApplicationStatus = "needs_user" | "submitted" | "failed";
+export type ApplicationMethod = "assisted" | "ats_api";
+
 export type Application = {
+  id: string;
   job: Job;
-  appliedAt: number;
+  status: ApplicationStatus;
+  method: ApplicationMethod;
   via: "auto" | "manual";
+  createdAt: number;
+  updatedAt: number;
+  submittedAt: number | null;
+  needsUserReason: string | null;
+  tailoredResumeFileName: string | null;
 };
-
-const STORAGE_KEY = "apply-ink:applications";
-
-export function readApplications(): Application[] {
-  try {
-    return JSON.parse(
-      window.localStorage.getItem(STORAGE_KEY) ?? "[]"
-    ) as Application[];
-  } catch {
-    return [];
-  }
-}
-
-export function saveApplications(applications: Application[]) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-  } catch {
-    // storage unavailable — applications stay in memory for the session
-  }
-}
+export type ApplicationAttempt = {
+  application: Application;
+  note: string;
+  browserOpened: boolean;
+};

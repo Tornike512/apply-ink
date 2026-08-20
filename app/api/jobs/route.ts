@@ -1,14 +1,24 @@
 import { after } from "next/server";
+import { getCandidateProfile } from "@/lib/application-store";
 import { AUTO_APPLY_RULES } from "@/lib/auto-apply";
 import { isWorkFromAnywhere } from "@/lib/job-eligibility";
+import { personalizeJobs } from "@/lib/job-matching";
 import {
   isRefreshing,
   isStale,
   readStore,
   refreshStore,
 } from "@/lib/jobs-store";
+import {
+  getAuthenticatedSessionId,
+  unauthenticatedResponse,
+} from "@/lib/user-session";
+
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  const sessionId = await getAuthenticatedSessionId(request);
+  if (!sessionId) return unauthenticatedResponse();
   const url = new URL(request.url);
   const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
   const pageSize = Math.min(
@@ -28,7 +38,11 @@ export async function GET(request: Request) {
   }
 
   // Also filter older cache files created before worldwide-only harvesting.
-  const all = (store?.jobs ?? []).filter(isWorkFromAnywhere);
+  const worldwide = (store?.jobs ?? []).filter(isWorkFromAnywhere);
+  const { jobs: all, personalized } = personalizeJobs(
+    worldwide,
+    await getCandidateProfile(sessionId)
+  );
   const filtered = q
     ? all.filter(
         (job) =>
@@ -49,5 +63,6 @@ export async function GET(request: Request) {
     sources: store?.sources ?? {},
     refreshedAt: store?.refreshedAt ?? null,
     refreshing: isRefreshing(),
+    personalized,
   });
 }

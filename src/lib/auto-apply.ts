@@ -3,7 +3,7 @@ import type { Job } from "@/lib/jobs";
 export const AUTO_APPLY_RULES = {
   minMatch: 80,
   dailyLimit: 5,
-  // Must stay in sync with the loader: 4 phases x PHASE_INTERVAL_MS (auto-apply-overlay)
+  // Must stay in sync with the four overlay phases.
   delayMs: 6000,
 };
 
@@ -14,7 +14,12 @@ export type AutoApplyStatus =
   | "done"
   | "limit-reached";
 
-export type ActivityStatus = "applied" | "skipped" | "error" | "limit";
+export type ActivityStatus =
+  | "applied"
+  | "needs_user"
+  | "skipped"
+  | "error"
+  | "limit";
 
 export type ActivityEntry = {
   id: string;
@@ -27,10 +32,10 @@ export type ActivityEntry = {
 
 export function decideJob(
   job: Job,
-  alreadyApplied: boolean
-): { status: "applied" | "skipped" | "error"; note: string } {
-  if (alreadyApplied) {
-    return { status: "skipped", note: "Already applied in this session" };
+  alreadyStarted: boolean
+): { status: "ready" | "skipped"; note: string } {
+  if (alreadyStarted) {
+    return { status: "skipped", note: "Already started in this session" };
   }
   if (job.match < AUTO_APPLY_RULES.minMatch) {
     return {
@@ -38,12 +43,5 @@ export function decideJob(
       note: `Match ${job.match}% is below your ${AUTO_APPLY_RULES.minMatch}% rule`,
     };
   }
-  // Simulated failure so the error path stays visible with any data set
-  if (job.id.endsWith("3")) {
-    return { status: "error", note: "Application portal timed out" };
-  }
-  return {
-    status: "applied",
-    note: `Cover letter tailored and sent to ${job.company}`,
-  };
+  return { status: "ready", note: "Ready for application routing" };
 }

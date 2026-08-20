@@ -1,7 +1,6 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { isWorkFromAnywhere } from "@/lib/job-eligibility";
 import type { Job } from "@/lib/jobs";
+import { getSharedCache, setSharedCache } from "@/lib/shared-cache";
 import boards from "./ats-boards.json";
 
 const PROFILE_SKILLS = [
@@ -665,8 +664,8 @@ async function fetchTheMuse(): Promise<Normalized[]> {
 }
 
 // JSearch (RapidAPI, keyed): free tier is 200 requests/month, so results are
-// cached to their own side file and refetched at most every 48h.
-const JSEARCH_CACHE = path.join(process.cwd(), "data", "jsearch-cache.json");
+// cached in PostgreSQL and refetched at most every 48h.
+const JSEARCH_CACHE_KEY = "jsearch-jobs";
 const JSEARCH_TTL_MS = 48 * 3_600_000;
 const JSEARCH_CACHE_VERSION = 2;
 const JSEARCH_QUERIES = [
@@ -698,22 +697,12 @@ async function fetchJSearch(): Promise<Normalized[]> {
   const key = process.env.JSEARCH_RAPIDAPI_KEY;
   if (!key) return [];
 
-  try {
-    const raw = await fs.readFile(JSEARCH_CACHE, "utf8");
-    const cached = JSON.parse(raw) as {
-      version?: number;
-      fetchedAt: number;
-      jobs: Normalized[];
-    };
-    if (
-      cached.version === JSEARCH_CACHE_VERSION &&
-      Date.now() - cached.fetchedAt < JSEARCH_TTL_MS
-    ) {
-      return cached.jobs;
-    }
-  } catch {
-    // no cache yet
-  }
+  const cached = await getSharedCache<Normalized[]>(
+    JSEARCH_CACHE_KEY,
+    JSEARCH_CACHE_VERSION,
+    JSEARCH_TTL_MS
+  );
+  if (cached) return cached;
 
   const out: Normalized[] = [];
   for (const query of JSEARCH_QUERIES) {
@@ -775,15 +764,7 @@ async function fetchJSearch(): Promise<Normalized[]> {
     }
   }
 
-  await fs.mkdir(path.dirname(JSEARCH_CACHE), { recursive: true });
-  await fs.writeFile(
-    JSEARCH_CACHE,
-    JSON.stringify({
-      version: JSEARCH_CACHE_VERSION,
-      fetchedAt: Date.now(),
-      jobs: out,
-    })
-  );
+  await setSharedCache(JSEARCH_CACHE_KEY, JSEARCH_CACHE_VERSION, out);
   return out;
 }
 
@@ -918,6 +899,7 @@ type LeverJob = {
   id: string;
   text: string;
   hostedUrl: string;
+  applyUrl?: string;
   createdAt?: number;
   workplaceType?: string;
   categories?: { location?: string; team?: string; commitment?: string };
@@ -946,7 +928,7 @@ async function fetchLeverBoard(board: { slug: string }): Promise<Normalized[]> {
       ...datePair(j.createdAt ?? null),
       description: stripHtml(j.descriptionPlain ?? ""),
       source: "Lever",
-      url: j.hostedUrl,
+      url: j.applyUrl ?? j.hostedUrl,
       logoUrl: undefined,
     }));
 }

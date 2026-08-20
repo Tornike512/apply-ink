@@ -6,22 +6,45 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:check": "node scripts/check-postgres.mjs",
+    "db:migrate:sqlite": "node scripts/migrate-sqlite-to-postgres.mjs",
+    "db:test": "node --conditions react-server --import tsx scripts/test-postgres.ts",
+    "auth:test": "node --conditions react-server --import tsx scripts/test-auth.ts",
+    "auth:api-test": "node --conditions react-server --import tsx scripts/test-auth-api.ts",
+    "auth:registration-test": "node --conditions react-server --import tsx scripts/test-registration.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
+    "better-sqlite3": "^13.0.3",
     "next": "16.3.1",
+    "officeparser": "^6.0.7",
+    "openai": "^7.5.0",
+    "pdfjs-dist": "5.5.207",
+    "pdfkit": "^0.19.1",
+    "pg": "^8.23.0",
+    "playwright-core": "^1.62.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "word-extractor": "^1.0.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
+    "@types/pdfkit": "^0.17.6",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
+  },
+  "overrides": {
+    "pdfjs-dist": "5.5.207"
   }
 }
