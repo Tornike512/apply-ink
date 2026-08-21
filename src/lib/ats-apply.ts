@@ -223,7 +223,7 @@ export async function tryDirectAtsApply(
     if (target.provider === "Greenhouse") {
       const key = configuredKeys("GREENHOUSE_JOB_BOARD_API_KEYS")[target.board];
       return key
-        ? applyThroughGreenhouse(target, profile, key)
+        ? await applyThroughGreenhouse(target, profile, key)
         : {
             status: "unavailable",
             reason: "This employer has not connected direct Greenhouse access.",
@@ -233,7 +233,7 @@ export async function tryDirectAtsApply(
     if (target.provider === "Workable") {
       const key = configuredKeys("WORKABLE_ACCESS_TOKENS")[target.board];
       return key
-        ? applyThroughWorkable(target, profile, key)
+        ? await applyThroughWorkable(target, profile, key)
         : {
             status: "unavailable",
             reason: "This employer has not connected direct Workable access.",
