@@ -1,8 +1,6 @@
 name: Tests
 
-on:
-  push:
-  pull_request:
+on: [push, pull_request, workflow_dispatch]
 
 permissions:
   contents: read
@@ -87,6 +85,7 @@ jobs:
             if curl --fail --silent http://localhost:3000/login > /dev/null; then
               exit 0
             fi
+            echo "Waiting for application ($attempt/30)"
             sleep 1
           done
           cat /tmp/apply-ink-next.log
