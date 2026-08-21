@@ -1,8 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { chromium } from "playwright-core";
+import PDFDocument from "pdfkit";
 import { closePostgresPool, postgresQuery } from "../src/lib/postgres";
 
 const ORIGIN = process.env.APPLY_INK_TEST_ORIGIN ?? "http://localhost:3000";
+
+async function createResumePdf(label: string): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  const document = new PDFDocument();
+  document.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+  const complete = new Promise<void>((resolve) => document.on("end", resolve));
+  document.fontSize(18).text(`${label} Resume`);
+  document
+    .fontSize(11)
+    .text(
+      "Product engineer with TypeScript, React, Node.js, PostgreSQL, production AI experience, and reliable remote software delivery."
+    );
+  document.end();
+  await complete;
+  return Buffer.concat(chunks);
+}
 
 async function main() {
   const suffix = randomUUID();
@@ -93,7 +110,7 @@ async function main() {
     await page.getByText("Fill the form from your resume", { exact: true }).waitFor();
     await page
       .getByRole("button", {
-        name: /^(?:Upload CV and fill my form|Replace CV and refill form)$/,
+        name: /^(?:Upload CV and fill my form|Replace CV)$/,
       })
       .waitFor();
     await page.locator('input[name="firstName"]').fill("");
@@ -102,6 +119,15 @@ async function main() {
     await page.locator('input[name="location"]').fill("");
     await page.locator('input[name="linkedinUrl"]').fill("");
     await page.getByRole("combobox", { name: "Phone country" }).click();
+    const phoneCountrySearch = page.getByRole("searchbox", {
+      name: "Phone country search",
+    });
+    await phoneCountrySearch.fill("Georgia");
+    await page
+      .getByRole("listbox", { name: "Phone country" })
+      .getByRole("option", { name: /Georgia \(\+995\)/ })
+      .waitFor();
+    await phoneCountrySearch.fill("+995");
     await page
       .getByRole("listbox", { name: "Phone country" })
       .getByRole("option", { name: /Georgia \(\+995\)/ })
@@ -153,14 +179,42 @@ async function main() {
         }),
       });
     });
+    const firstPdf = await createResumePdf("Registration Test");
     await page.locator('input[name="resume"]').setInputFiles({
-      name: "registration-test-resume.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from(
-        "Registration Test\nProduct engineer with TypeScript, React, Node.js, PostgreSQL, and production AI experience. Built and shipped reliable remote software products."
-      ),
+      name: "registration-test-resume.pdf",
+      mimeType: "application/pdf",
+      buffer: firstPdf,
     });
     await page.getByText("answers filled from your CV", { exact: false }).waitFor();
+    const approvedResume = page.locator("[data-resume-approved]");
+    await approvedResume.getByText("CV approved", { exact: true }).waitFor();
+    await approvedResume
+      .getByText("registration-test-resume.pdf", { exact: false })
+      .waitFor();
+    if ((await approvedResume.locator("svg").count()) < 1) {
+      throw new Error("Approved CV state did not show its green check icon.");
+    }
+    const secondPdf = await createResumePdf("Replacement Test");
+    await page.locator('input[name="resume"]').setInputFiles({
+      name: "replacement-resume.pdf",
+      mimeType: "application/pdf",
+      buffer: secondPdf,
+    });
+    await approvedResume
+      .getByText("replacement-resume.pdf", { exact: false })
+      .waitFor();
+    await approvedResume.getByRole("button", { name: "Remove" }).click();
+    await approvedResume
+      .getByText("replacement-resume.pdf", { exact: false })
+      .waitFor({ state: "detached" });
+    await page.locator('input[name="resume"]').setInputFiles({
+      name: "registration-test-resume.pdf",
+      mimeType: "application/pdf",
+      buffer: firstPdf,
+    });
+    await approvedResume
+      .getByText("registration-test-resume.pdf", { exact: false })
+      .waitFor();
     if (
       (await page.locator('input[name="firstName"]').inputValue()) !==
         "Registration" ||
@@ -171,7 +225,14 @@ async function main() {
         "Tbilisi, Georgia" ||
       !(await page
         .getByRole("combobox", { name: "Phone country" })
-        .textContent())?.includes("Georgia")
+        .textContent())?.includes("+995") ||
+      (await page
+        .getByRole("combobox", { name: "Phone country" })
+        .locator('img[data-country="ge"]')
+        .count()) !== 1 ||
+      (await page.getByRole("textbox", { name: "Phone number" }).inputValue()).includes(
+        "+995"
+      )
     ) {
       throw new Error("CV contact details did not fill the step-two form.");
     }
@@ -465,10 +526,14 @@ async function main() {
         resumeIsSecondStep: true,
         resumeFirstPrefill: true,
         countryPhoneInput: true,
+        searchableCountryCode: true,
+        splitLocalPhoneNumber: true,
         equalRegistrationCards: true,
         headerRegisterAnchor: true,
         validatesBeforeAccountCreation: true,
         resumeUpload: true,
+        approvedResumeState: true,
+        resumeReplaceAndRemove: true,
         cvAnswerPrefill: true,
         httpOnlyInBrowser: true,
         jobsRoute: true,
