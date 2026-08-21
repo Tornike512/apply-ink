@@ -45,6 +45,12 @@ const STEPS = [
 
 type ValidatableField = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
+type ResumePrefillResponse = {
+  answers?: Record<string, string>;
+  filledFields?: string[];
+  error?: string;
+};
+
 function countFormAnswers(form: HTMLFormElement): number {
   const formData = new FormData(form);
   return APPLICATION_ANSWER_KEYS.filter((key) => {
@@ -59,9 +65,12 @@ export function RegistrationWizard() {
   const profileQuery = useCandidateProfile();
   const profile = profileQuery.data ?? EMPTY_CANDIDATE_PROFILE;
   const formRef = useRef<HTMLFormElement>(null);
+  const prefillRequestRef = useRef(0);
   const [step, setStep] = useState(0);
   const [furthestStep, setFurthestStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [prefilling, setPrefilling] = useState(false);
+  const [resumeReadError, setResumeReadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [answerCount, setAnswerCount] = useState<number | null>(null);
   const visibleAnswerCount = answerCount ?? profile.applicationAnswerCount;
@@ -76,6 +85,14 @@ export function RegistrationWizard() {
   }
 
   function stepIsValid(): boolean {
+    if (prefilling) {
+      setMessage("Wait while we finish reading your CV.");
+      return false;
+    }
+    if (step === 1 && resumeReadError) {
+      setMessage(resumeReadError);
+      return false;
+    }
     const form = formRef.current;
     const container = form?.querySelector<HTMLElement>(
       `[data-registration-step="${step}"]`
@@ -101,6 +118,65 @@ export function RegistrationWizard() {
       }
     }
     return true;
+  }
+
+  async function prefillFromResume(resume?: File) {
+    const form = formRef.current;
+    if (!form) return;
+    const requestId = prefillRequestRef.current + 1;
+    prefillRequestRef.current = requestId;
+    setPrefilling(true);
+    setResumeReadError(null);
+    setMessage("Reading your CV and finding reusable answers...");
+
+    const formData = new FormData();
+    if (resume) formData.set("resume", resume);
+    try {
+      const response = await fetch("/api/auth/resume-prefill", {
+        method: "POST",
+        headers: { "x-apply-ink": "1" },
+        body: formData,
+      });
+      const data = (await response.json().catch(() => ({}))) as ResumePrefillResponse;
+      if (!response.ok || !data.answers) {
+        throw new Error(data.error ?? "Could not read answers from this CV.");
+      }
+      if (prefillRequestRef.current !== requestId) return;
+
+      let appliedCount = 0;
+      for (const [name, value] of Object.entries(data.answers)) {
+        const field = form.elements.namedItem(name);
+        if (
+          !(field instanceof HTMLInputElement) &&
+          !(field instanceof HTMLSelectElement) &&
+          !(field instanceof HTMLTextAreaElement)
+        ) {
+          continue;
+        }
+        if (!field.value.trim() && value.trim()) {
+          field.value = value;
+          field.dispatchEvent(new Event("input", { bubbles: true }));
+          field.dispatchEvent(new Event("change", { bubbles: true }));
+          appliedCount += 1;
+        }
+      }
+      setAnswerCount(countFormAnswers(form));
+      setMessage(
+        appliedCount > 0
+          ? `${appliedCount} answer${appliedCount === 1 ? "" : "s"} filled from your CV. Review them before continuing.`
+          : "CV read successfully. Your existing answers were kept."
+      );
+    } catch (error) {
+      if (prefillRequestRef.current !== requestId) return;
+      const nextMessage =
+        error instanceof Error
+          ? error.message
+          : "Could not read answers from this CV.";
+      setResumeReadError(nextMessage);
+      setMessage(nextMessage);
+    } finally {
+      if (prefillRequestRef.current === requestId) setPrefilling(false);
+    }
   }
 
   function nextStep() {
@@ -328,8 +404,9 @@ export function RegistrationWizard() {
 
                 <section data-registration-step="1" hidden={step !== 1}>
                   <p className="mb-5 text-sm leading-6 text-espresso/60">
-                    We extract skills and experience from your resume to personalize
-                    matches and application answers.
+                    Upload your CV first. Apply Ink fills contact and experience
+                    answers only when the document supports them; review every
+                    answer before continuing.
                   </p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="text-sm font-medium text-espresso">
@@ -355,6 +432,10 @@ export function RegistrationWizard() {
                         type="file"
                         accept=".pdf,.doc,.docx,.rtf,.odt,.txt"
                         required={!profile.resumeFileName}
+                        onChange={(event) => {
+                          const resume = event.currentTarget.files?.[0];
+                          if (resume) void prefillFromResume(resume);
+                        }}
                         className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-sand/55 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-espresso`}
                       />
                       <span className="mt-1.5 block text-xs font-normal text-espresso/50">
@@ -362,6 +443,16 @@ export function RegistrationWizard() {
                           ? `${profile.resumeFileName} is already uploaded. Choose a file only to replace it.`
                           : "PDF, DOC, DOCX, RTF, ODT, or TXT; maximum 10 MB"}
                       </span>
+                      {profile.resumeFileName && (
+                        <button
+                          type="button"
+                          onClick={() => void prefillFromResume()}
+                          disabled={prefilling}
+                          className="mt-2 text-xs font-semibold text-sienna underline underline-offset-2 disabled:opacity-50"
+                        >
+                          Fill remaining answers from saved CV
+                        </button>
+                      )}
                     </label>
                     <label className="text-sm font-medium text-espresso sm:col-span-2">
                       Default introduction or cover note
@@ -403,7 +494,7 @@ export function RegistrationWizard() {
                 </p>
                 <div className="flex gap-2 sm:ml-auto">
                   {step > 0 && (
-                    <Button type="button" variant="outline" onClick={previousStep} disabled={saving} className="min-w-24 rounded-xl px-5 py-2.5">
+                    <Button type="button" variant="outline" onClick={previousStep} disabled={saving || prefilling} className="min-w-24 rounded-xl px-5 py-2.5">
                       Back
                     </Button>
                   )}
@@ -411,13 +502,14 @@ export function RegistrationWizard() {
                     <Button
                       type="button"
                       variant="primary"
+                      disabled={prefilling}
                       onClick={(event) => {
                         event.preventDefault();
                         nextStep();
                       }}
                       className="min-w-28 rounded-xl px-5 py-2.5"
                     >
-                      Continue
+                      {prefilling ? "Reading CV..." : "Continue"}
                     </Button>
                   ) : (
                     <Button type="submit" variant="primary" disabled={saving} className="min-w-48 rounded-xl px-6 py-2.5">
