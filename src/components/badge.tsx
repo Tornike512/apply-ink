@@ -3,10 +3,10 @@ import type { HTMLAttributes } from "react";
 type BadgeVariant = "sand" | "terracotta" | "sienna" | "success";
 
 const variantClasses: Record<BadgeVariant, string> = {
-  sand: "bg-sand text-espresso",
-  terracotta: "bg-terracotta text-cream",
-  sienna: "bg-sienna text-cream",
-  success: "bg-success/15 text-success",
+  sand: "border-sand/90 bg-surface/72 text-espresso/72",
+  terracotta: "border-terracotta/45 bg-terracotta/12 text-espresso",
+  sienna: "border-sienna/35 bg-sienna/10 text-sienna",
+  success: "border-success/30 bg-success/10 text-success",
 };
 
 type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
@@ -20,7 +20,7 @@ export function Badge({
 }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${variantClasses[variant]} ${className}`}
+      className={`inline-flex items-center rounded-xl border px-2.5 py-1 text-[0.7rem] leading-none font-semibold whitespace-nowrap shadow-[0_1px_2px_rgba(78,47,36,0.06)] ${variantClasses[variant]} ${className}`}
       {...props}
     />
   );

@@ -203,7 +203,7 @@ export function MarketingLanding() {
               Remote work, without the repetitive forms
             </p>
 
-            <h1 className="mt-6 max-w-3xl text-[2.55rem] leading-[0.98] font-bold tracking-[-0.055em] text-espresso sm:text-6xl lg:text-[4.45rem]">
+            <h1 className="hero-title mt-6 max-w-3xl text-[2.55rem] text-espresso sm:text-6xl lg:text-[4.45rem]">
               One resume.
               <span className="block text-terracotta">Many applications.</span>
               One click.
@@ -459,7 +459,7 @@ export function MarketingLanding() {
           </div>
         </section>
 
-        <section className={`${styles.controlSection} relative my-24 overflow-hidden rounded-[1.75rem] border border-sand/80 px-6 py-12 shadow-[0_24px_80px_rgba(78,47,36,0.08)] sm:px-10 sm:py-16 lg:px-16 lg:py-18`}>
+        <section id="safety-and-control" className={`${styles.controlSection} relative my-24 scroll-mt-28 overflow-hidden rounded-[1.75rem] border border-sand/80 px-6 py-12 shadow-[0_24px_80px_rgba(78,47,36,0.08)] sm:px-10 sm:py-16 lg:px-16 lg:py-18`}>
           <div className={styles.controlArcs} aria-hidden="true" />
           <div className={styles.controlDots} aria-hidden="true" />
 
@@ -501,7 +501,7 @@ export function MarketingLanding() {
           </div>
         </section>
 
-        <section className="grid gap-10 border-t border-sand/70 py-24 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
+        <section id="faq" className="grid scroll-mt-28 gap-10 border-t border-sand/70 py-24 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
           <div className="max-w-md">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-terracotta">
               Common questions

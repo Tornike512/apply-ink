@@ -235,7 +235,7 @@ export default function DashboardPage() {
   return (
     <div
       data-dashboard-scroll
-      className="mx-auto flex h-svh w-full max-w-[1440px] overflow-auto"
+      className="flex h-svh w-full overflow-auto"
     >
       <Sidebar
         active={activeNav}

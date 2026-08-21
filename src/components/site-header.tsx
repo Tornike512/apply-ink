@@ -8,10 +8,28 @@ export async function SiteHeader() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-sand/70 bg-cream/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-18 w-full max-w-[1440px] items-center justify-between gap-4 px-5 sm:px-8 lg:px-12">
+      <div className="mx-auto grid h-18 w-full max-w-[1440px] grid-cols-[auto_1fr_auto] items-center gap-4 px-5 sm:px-8 lg:px-12">
         <Link href="/" aria-label="Apply Ink home" className="shrink-0">
           <Logo />
         </Link>
+        <nav
+          aria-label="Landing page sections"
+          className="hidden items-center justify-center gap-7 lg:flex"
+        >
+          {[
+            ["How it works", "/#how-it-works"],
+            ["Safety & control", "/#safety-and-control"],
+            ["FAQ", "/#faq"],
+          ].map(([label, href]) => (
+            <Link
+              key={href}
+              href={href}
+              className="whitespace-nowrap text-sm font-semibold text-espresso/62 transition-colors hover:text-sienna focus-visible:text-sienna focus-visible:outline-none"
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
         <nav aria-label="Account" className="flex shrink-0 items-center gap-2 sm:gap-3">
           {user ? (
             <>
@@ -38,8 +56,7 @@ export async function SiteHeader() {
                 href="/register#register"
                 className="whitespace-nowrap rounded-xl bg-sienna px-3 py-2 text-sm font-bold text-cream transition-colors hover:bg-espresso sm:px-4"
               >
-                <span className="sm:hidden">Upload</span>
-                <span className="hidden sm:inline">Upload resume</span>
+                Start applying
               </Link>
             </>
           )}
