@@ -16,6 +16,16 @@ export const RESUME_EXTENSIONS = new Set([
 ]);
 
 const MAX_RESUME_TEXT_CHARS = 100_000;
+
+async function ensurePdfGlobals(): Promise<void> {
+  const runtimeGlobals = globalThis as unknown as Record<string, unknown>;
+  if (runtimeGlobals.DOMMatrix) return;
+  const canvas = await import("@napi-rs/canvas");
+  runtimeGlobals.DOMMatrix = canvas.DOMMatrix;
+  runtimeGlobals.ImageData ??= canvas.ImageData;
+  runtimeGlobals.Path2D ??= canvas.Path2D;
+}
+
 function normalizeText(value: string): string {
   return value
     .replace(/\r\n?/g, "\n")
@@ -35,33 +45,42 @@ export async function extractResumeText(
   }
 
   let text = "";
-  if (extension === ".txt") {
-    text = buffer.toString("utf8");
-  } else if (extension === ".doc") {
-    const extractor = new WordExtractor();
-    text = (await extractor.extract(buffer)).getBody();
-  } else {
-    const workerPath =
-      extension === ".pdf"
-        ? await fs.realpath(
-            path.join(
-              process.cwd(),
-              "node_modules",
-              "pdfjs-dist",
-              "legacy",
-              "build",
-              "pdf.worker.mjs"
+  try {
+    if (extension === ".txt") {
+      text = buffer.toString("utf8");
+    } else if (extension === ".doc") {
+      const extractor = new WordExtractor();
+      text = (await extractor.extract(buffer)).getBody();
+    } else {
+      if (extension === ".pdf") await ensurePdfGlobals();
+      const workerPath =
+        extension === ".pdf"
+          ? await fs.realpath(
+              path.join(
+                process.cwd(),
+                "node_modules",
+                "pdfjs-dist",
+                "legacy",
+                "build",
+                "pdf.worker.mjs"
+              )
             )
-          )
-        : null;
-    const config = workerPath
-      ? {
-          outputErrorToConsole: false,
-          pdfWorkerSrc: pathToFileURL(workerPath).href,
-        }
-      : { outputErrorToConsole: false };
-    const parsed = await parseOffice(buffer, config);
-    text = parsed.toText();
+          : null;
+      const config = workerPath
+        ? {
+            outputErrorToConsole: false,
+            pdfWorkerSrc: pathToFileURL(workerPath).href,
+          }
+        : { outputErrorToConsole: false };
+      const parsed = await parseOffice(buffer, config);
+      text = parsed.toText();
+    }
+  } catch {
+    throw new Error(
+      extension === ".pdf"
+        ? "Could not read this PDF. Upload a valid, text-based PDF."
+        : "Could not read this CV document. Try exporting it as a PDF or DOCX file."
+    );
   }
 
   const normalized = normalizeText(text);

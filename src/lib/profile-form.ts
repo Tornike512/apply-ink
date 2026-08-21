@@ -14,6 +14,16 @@ import {
 
 const MAX_RESUME_BYTES = 10 * 1024 * 1024;
 const MAX_INVENTORY_BYTES = 10 * 1024 * 1024;
+const RESUME_MIME_TYPES: Readonly<Record<string, readonly string[]>> = {
+  ".pdf": ["application/pdf", "application/x-pdf"],
+  ".doc": ["application/msword"],
+  ".docx": [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ],
+  ".rtf": ["application/rtf", "text/rtf"],
+  ".odt": ["application/vnd.oasis.opendocument.text"],
+  ".txt": ["text/plain"],
+};
 
 export class ResumeUploadError extends Error {}
 
@@ -188,6 +198,17 @@ export async function resumeFieldsFromFile(resume: File) {
   }
   if (resume.size > MAX_RESUME_BYTES) {
     throw new ResumeUploadError("Resume must be 10 MB or smaller.");
+  }
+  const providedMime = resume.type.toLowerCase();
+  const allowedMimeTypes = RESUME_MIME_TYPES[extension] ?? [];
+  if (
+    providedMime &&
+    providedMime !== "application/octet-stream" &&
+    !allowedMimeTypes.includes(providedMime)
+  ) {
+    throw new ResumeUploadError(
+      "The CV file type does not match its file extension. Export it again and retry."
+    );
   }
 
   const buffer = Buffer.from(await resume.arrayBuffer());

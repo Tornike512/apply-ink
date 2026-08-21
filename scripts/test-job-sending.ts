@@ -475,16 +475,18 @@ const cases: ManualTestCase[] = [
   },
   {
     id: "cv-mime-mismatch",
-    kind: "known-gap",
-    description: "A readable .txt file is accepted even when its MIME type says image/png.",
-    failureMeans: "The extension-only content-type limitation changed and must be reviewed.",
+    description: "A CV is rejected when its MIME type conflicts with its extension.",
+    failureMeans: "A disguised upload can reach a document parser it does not belong to.",
     async run() {
       const file = new File([readableResumeText], "resume.txt", {
         type: "image/png",
       });
-      const fields = await resumeFieldsFromFile(file);
-      assert.equal(fields.resumeText, readableResumeText);
-      assert.equal(fields.resumeMimeType, "image/png");
+      await assert.rejects(
+        resumeFieldsFromFile(file),
+        (error) =>
+          error instanceof ResumeUploadError &&
+          /does not match its file extension/.test(error.message)
+      );
     },
   },
   {

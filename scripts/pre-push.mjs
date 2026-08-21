@@ -151,6 +151,7 @@ async function main() {
         ]),
     ],
     ["Resume prefill tests", () => runNpmScript("resume-prefill:test")],
+    ["Resume format tests", () => runNpmScript("resume-formats:test")],
     ["Job identity tests", () => runNpmScript("job-identity:test")],
     ["Job filtering tests", () => runNpmScript("job-filtering:test")],
     ["PostgreSQL schema check", () => runNpmScript("db:check")],
