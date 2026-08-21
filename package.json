@@ -21,6 +21,7 @@
     "job-identity:test": "node --import tsx scripts/test-job-identity.ts",
     "resume-prefill:test": "node --conditions react-server --import tsx scripts/test-resume-prefill.ts",
     "resume-formats:test": "node --conditions react-server --import tsx scripts/test-resume-formats.ts",
+    "skills:test": "node --conditions react-server --import tsx scripts/test-skills.ts",
     "job-sending:test": "node --env-file-if-exists=.env.development.local --env-file-if-exists=.env.local --conditions react-server --import tsx scripts/test-job-sending.ts",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "pre-push:test": "node --env-file-if-exists=.env.development.local --env-file-if-exists=.env.local scripts/pre-push.mjs"

@@ -20,9 +20,20 @@ const YES_NO_OPTIONS = [
 ] as const;
 
 const SPONSORSHIP_OPTIONS = [
-  { value: "", label: "Not answered" },
+  { value: "", label: "Select an answer" },
   { value: "no", label: "No — selected countries only" },
   { value: "yes", label: "Yes — outside selected countries" },
+] as const;
+
+const NOTICE_PERIOD_OPTIONS = [
+  { value: "", label: "Select notice period" },
+  { value: "Immediately", label: "Immediately" },
+  { value: "1 week", label: "1 week" },
+  { value: "2 weeks", label: "2 weeks" },
+  { value: "1 month", label: "1 month" },
+  { value: "2 months", label: "2 months" },
+  { value: "3 months", label: "3 months" },
+  { value: "More than 3 months", label: "More than 3 months" },
 ] as const;
 
 const GENDER_OPTIONS = [
@@ -71,8 +82,10 @@ function YesNoDropdown({
   value: YesNoAnswer;
 }) {
   return (
-    <div className="text-sm font-medium text-espresso">
-      <p>{label}</p>
+    <div className="grid content-start text-sm font-medium text-espresso sm:grid-rows-[2.75rem_auto]">
+      <p className="self-end pb-1">
+        {label} <span className="font-normal text-espresso/45">(optional)</span>
+      </p>
       <Dropdown
         name={name}
         ariaLabel={label}
@@ -108,6 +121,16 @@ export function ApplicationQuestionFields({
   const visibleSections = new Set(
     sections ?? ["preferences", "experience", "permissions"]
   );
+  const knownNoticePeriod = NOTICE_PERIOD_OPTIONS.some(
+    (option) => option.value === answers.noticePeriod
+  );
+  const noticePeriodOptions =
+    knownNoticePeriod || !answers.noticePeriod
+      ? NOTICE_PERIOD_OPTIONS
+      : [
+          ...NOTICE_PERIOD_OPTIONS,
+          { value: answers.noticePeriod, label: answers.noticePeriod },
+        ];
   return (
     <div className="grid gap-7">
       {visibleSections.has("preferences") && <fieldset>
@@ -118,37 +141,51 @@ export function ApplicationQuestionFields({
           This does not mean you can work in every country. Select only countries
           where you already have citizenship, residency, or valid work permission.
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <p className="mt-2 text-xs text-espresso/50">
+          <span className="font-bold text-terracotta">*</span> Required to continue.
+        </p>
+        <div className="mt-4 grid items-start gap-4 sm:grid-cols-2">
           <div className="text-sm font-medium text-espresso sm:col-span-2">
             Countries where you can work without employer sponsorship
+            <span className="ml-1 text-terracotta" aria-hidden="true">*</span>
             <CountryMultiSelect
               values={workCountries}
               onChange={setWorkCountries}
             />
           </div>
-          <div className="text-sm font-medium text-espresso">
-            <p>Will you need employer visa sponsorship outside those countries?</p>
+          <div className="grid content-start text-sm font-medium text-espresso sm:grid-rows-[2.75rem_auto_auto]">
+            <p className="self-end pb-1">
+              Will you need employer visa sponsorship outside those countries?
+              <span className="ml-1 text-terracotta" aria-hidden="true">*</span>
+            </p>
             <Dropdown
               name="needsSponsorship"
               ariaLabel="Visa sponsorship outside selected countries"
               defaultValue={answers.needsSponsorship}
               options={SPONSORSHIP_OPTIONS}
-              className="mt-1.5"
+              className="mt-1.5 sm:mt-0"
             />
             <p className="mt-1.5 text-xs font-normal leading-5 text-espresso/50">
               “Yes” means AI will not claim you can work everywhere; it will keep
               applications within your selected countries unless sponsorship is offered.
             </p>
           </div>
-          <label className="text-sm font-medium text-espresso">
-            Notice period
-            <input
+          <div className="grid content-start text-sm font-medium text-espresso sm:grid-rows-[2.75rem_auto_auto]">
+            <p className="self-end pb-1">
+              Notice period
+              <span className="ml-1 text-terracotta" aria-hidden="true">*</span>
+            </p>
+            <Dropdown
               name="noticePeriod"
-              placeholder="2 weeks"
+              ariaLabel="Notice period"
               defaultValue={answers.noticePeriod}
-              className={inputClass}
+              options={noticePeriodOptions}
+              className="sm:mt-0"
             />
-          </label>
+            <p className="mt-1.5 text-xs font-normal leading-5 text-espresso/50">
+              Choose when you could start a new role.
+            </p>
+          </div>
         </div>
       </fieldset>}
 
@@ -160,9 +197,11 @@ export function ApplicationQuestionFields({
           These quick facts stop AI from guessing and unlock more automatic
           submissions.
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm font-medium text-espresso">
-            Years in product roles
+        <div className="mt-4 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="grid content-start text-sm font-medium text-espresso sm:grid-rows-[2.75rem_auto]">
+            <span className="self-end pb-1">
+              Years in product roles <span className="font-normal text-espresso/45">(optional)</span>
+            </span>
             <input
               name="yearsProductExperience"
               type="number"
@@ -170,11 +209,13 @@ export function ApplicationQuestionFields({
               max={60}
               placeholder="5"
               defaultValue={answers.yearsProductExperience}
-              className={inputClass}
+              className={`${inputClass} sm:mt-0`}
             />
           </label>
-          <label className="text-sm font-medium text-espresso">
-            Years building AI products
+          <label className="grid content-start text-sm font-medium text-espresso sm:grid-rows-[2.75rem_auto]">
+            <span className="self-end pb-1">
+              Years building AI products <span className="font-normal text-espresso/45">(optional)</span>
+            </span>
             <input
               name="yearsAiExperience"
               type="number"
@@ -182,7 +223,7 @@ export function ApplicationQuestionFields({
               max={60}
               placeholder="3"
               defaultValue={answers.yearsAiExperience}
-              className={inputClass}
+              className={`${inputClass} sm:mt-0`}
             />
           </label>
           <YesNoDropdown
@@ -224,7 +265,7 @@ export function ApplicationQuestionFields({
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="text-sm font-medium text-espresso">
-              <p>Gender</p>
+              <p>Gender <span className="font-normal text-espresso/45">(optional)</span></p>
               <Dropdown
                 name="gender"
                 ariaLabel="Gender"
@@ -234,7 +275,7 @@ export function ApplicationQuestionFields({
               />
             </div>
             <div className="text-sm font-medium text-espresso">
-              <p>Race or ethnicity</p>
+              <p>Race or ethnicity <span className="font-normal text-espresso/45">(optional)</span></p>
               <MultiSelectDropdown
                 name="raceEthnicities"
                 ariaLabel="Race or ethnicity"
@@ -245,7 +286,7 @@ export function ApplicationQuestionFields({
               />
             </div>
             <div className="text-sm font-medium text-espresso">
-              <p>Veteran status</p>
+              <p>Veteran status <span className="font-normal text-espresso/45">(optional)</span></p>
               <Dropdown
                 name="veteranStatus"
                 ariaLabel="Veteran status"
@@ -255,7 +296,7 @@ export function ApplicationQuestionFields({
               />
             </div>
             <div className="text-sm font-medium text-espresso">
-              <p>Disability status</p>
+              <p>Disability status <span className="font-normal text-espresso/45">(optional)</span></p>
               <Dropdown
                 name="disabilityStatus"
                 ariaLabel="Disability status"
@@ -287,7 +328,7 @@ export function ApplicationQuestionFields({
               />
               <span>
                 <span className="block text-sm font-semibold text-espresso">
-                  Submit complete applications automatically
+                  Submit complete applications automatically <span className="font-normal text-espresso/45">(optional)</span>
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-espresso/55">
                   Only when every required answer comes from this profile or your CV.
@@ -303,7 +344,7 @@ export function ApplicationQuestionFields({
               />
               <span>
                 <span className="block text-sm font-semibold text-espresso">
-                  Accept privacy notices required to apply
+                  Accept privacy notices required to apply <span className="font-normal text-espresso/45">(optional)</span>
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-espresso/55">
                   Optional marketing and talent-pool agreements remain off.
@@ -319,7 +360,7 @@ export function ApplicationQuestionFields({
               />
               <span>
                 <span className="block text-sm font-semibold text-espresso">
-                  Join optional employer talent pools
+                  Join employer talent pools <span className="font-normal text-espresso/45">(optional)</span>
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-espresso/55">
                   Off by default because some employers retain and share profiles.

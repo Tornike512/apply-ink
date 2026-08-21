@@ -105,7 +105,13 @@ async function main() {
     await automationDialog
       .getByRole("button", { name: "Continue registration" })
       .click();
-    await page.getByText("Continue with Google", { exact: true }).waitFor();
+    try {
+      await page.getByText("Continue with Google", { exact: true }).waitFor();
+    } catch {
+      throw new Error(
+        `Registration account step did not render. URL: ${page.url()}. UI: ${(await page.locator("body").innerText()).slice(0, 1_500)}`
+      );
+    }
     await page
       .getByRole("link", { name: /^(?:Register|Upload resume)$/ })
       .click();
@@ -123,7 +129,7 @@ async function main() {
       .fill(`Account-${suffix}-6`);
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Resume", exact: true }).waitFor();
-    await page.getByText("Fill the form from your resume", { exact: true }).waitFor();
+    await page.getByText("Fill the form from your resume", { exact: false }).waitFor();
     await page
       .getByRole("button", {
         name: /^(?:Upload CV and fill my form|Replace CV)$/,
@@ -169,6 +175,7 @@ async function main() {
     }
 
     await page.route("**/api/auth/resume-prefill", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 450));
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -211,7 +218,27 @@ async function main() {
       mimeType: "application/pdf",
       buffer: firstPdf,
     });
+    const resumeReadingState = page.locator("[data-resume-reading]");
+    await resumeReadingState.waitFor();
+    await resumeReadingState
+      .getByText("Reading your CV...", { exact: true })
+      .waitFor();
+    await resumeReadingState
+      .getByText("registration-test-resume.pdf", { exact: false })
+      .waitFor();
+    const cvFieldsDisabled = await page
+      .locator('input[name="firstName"]')
+      .isDisabled();
+    const cvContinueDisabled = await page
+      .getByRole("button", { name: "Continue", exact: true })
+      .isDisabled();
+    if (!cvFieldsDisabled || !cvContinueDisabled) {
+      throw new Error(
+        `CV loading lock failed: fieldsDisabled=${cvFieldsDisabled}, continueDisabled=${cvContinueDisabled}.`
+      );
+    }
     await page.getByText("answers filled from your CV", { exact: false }).waitFor();
+    await resumeReadingState.waitFor({ state: "detached" });
     const approvedResume = page.locator("[data-resume-approved]");
     await approvedResume.getByText("CV approved", { exact: true }).waitFor();
     await approvedResume
@@ -277,6 +304,46 @@ async function main() {
         `CV links, introduction, or skills were not prefilled: GitHub=${prefilledGithub}, introduction=${prefilledIntroduction}, skills=${prefilledSkillsValue}.`
       );
     }
+    await page.route("**/api/skills?*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          skills: ["Next.js", "Next.js routing", "React"],
+          source: "catalog+esco",
+        }),
+      });
+    });
+    await page.getByRole("combobox", { name: "Choose skills" }).click();
+    const skillSearch = page.getByRole("searchbox", { name: "Search skills" });
+    await skillSearch.fill("Next.js");
+    await page
+      .getByRole("listbox", { name: "Skill suggestions" })
+      .getByRole("option", { name: "Next.js", exact: true })
+      .waitFor();
+    await page
+      .getByRole("listbox", { name: "Skill suggestions" })
+      .getByRole("option", { name: "Next.js", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Clear skill search" }).click();
+    await page
+      .getByRole("listbox", { name: "Skill suggestions" })
+      .getByRole("option", { name: "React", exact: true })
+      .waitFor();
+    await page.getByRole("button", { name: /Clear all \(4\)/ }).click();
+    await page.getByRole("button", { name: "Save skills" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page
+      .getByText("Choose at least one skill AI can use to match jobs.", {
+        exact: true,
+      })
+      .waitFor();
+    await page.getByRole("combobox", { name: "Choose skills" }).click();
+    const skillListbox = page.getByRole("listbox", { name: "Skill suggestions" });
+    await skillListbox.getByRole("option", { name: "TypeScript", exact: true }).click();
+    await skillListbox.getByRole("option", { name: "React", exact: true }).click();
+    await skillListbox.getByRole("option", { name: "PostgreSQL", exact: true }).click();
+    await page.getByRole("button", { name: "Save skills" }).click();
     const registrationCardHeights = await page.evaluate(() => {
       const steps = document.querySelector<HTMLElement>(
         "[data-registration-steps]"
@@ -327,8 +394,55 @@ async function main() {
     ) {
       throw new Error("Application-question dropdown did not update its form value.");
     }
+    const preferenceControlTops = await page.evaluate(() => {
+      const sponsorship = document.querySelector<HTMLElement>(
+        '[aria-label="Visa sponsorship outside selected countries"]'
+      );
+      const notice = document.querySelector<HTMLElement>(
+        '[aria-label="Notice period"]'
+      );
+      return sponsorship && notice
+        ? {
+            sponsorship: sponsorship.getBoundingClientRect().top,
+            notice: notice.getBoundingClientRect().top,
+          }
+        : null;
+    });
+    if (
+      !preferenceControlTops ||
+      Math.abs(preferenceControlTops.sponsorship - preferenceControlTops.notice) > 1
+    ) {
+      throw new Error("Sponsorship and notice-period controls are not aligned.");
+    }
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByText("Select your notice period.", { exact: true }).waitFor();
+    await page.getByRole("combobox", { name: "Notice period" }).click();
+    await page
+      .getByRole("listbox", { name: "Notice period" })
+      .getByRole("option", { name: "2 weeks", exact: true })
+      .click();
+    if ((await page.locator('input[name="noticePeriod"]').inputValue()) !== "2 weeks") {
+      throw new Error("Notice-period dropdown did not update its form value.");
+    }
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Experience", exact: true }).waitFor();
+    const experienceControlTops = await page.evaluate(() => {
+      const selectors = [
+        'input[name="yearsProductExperience"]',
+        'input[name="yearsAiExperience"]',
+        '[aria-label="Medical or healthcare experience?"]',
+      ];
+      return selectors.map(
+        (selector) =>
+          document.querySelector<HTMLElement>(selector)?.getBoundingClientRect().top ?? -1
+      );
+    });
+    if (
+      experienceControlTops.some((top) => top < 0) ||
+      Math.max(...experienceControlTops) - Math.min(...experienceControlTops) > 1
+    ) {
+      throw new Error("Common employer-question controls are not aligned.");
+    }
     const typescriptAnswer = await page
       .locator('input[name="typescriptExperience"]')
       .inputValue();

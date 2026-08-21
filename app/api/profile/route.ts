@@ -6,6 +6,7 @@ import {
 } from "@/lib/application-store";
 import {
   candidateProfileFromForm,
+  onboardingValidationError,
   publicCandidateProfile,
   resumeFieldsFromFile,
   ResumeUploadError,
@@ -142,6 +143,12 @@ export async function PUT(request: Request) {
     const resume = formData.get("resume");
     if (resume instanceof File && resume.size > 0) {
       next = await withResumePrefill(sessionId, next);
+    }
+    if (formData.get("finishOnboarding") === "1") {
+      const onboardingError = onboardingValidationError(next);
+      if (onboardingError) {
+        return Response.json({ error: onboardingError }, { status: 400 });
+      }
     }
     const saved = await saveCandidateProfile(
       sessionId,

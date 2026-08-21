@@ -3,6 +3,7 @@ import type { StoredCandidateProfile } from "../src/lib/application-store";
 import { EMPTY_CANDIDATE_PROFILE } from "../src/lib/candidate-profile";
 import {
   candidateProfileFromForm,
+  onboardingValidationError,
   ResumeUploadError,
 } from "../src/lib/profile-form";
 
@@ -27,6 +28,7 @@ function validForm(): FormData {
   form.set("skills", JSON.stringify(["TypeScript", "React", "typescript"]));
   form.set("workAuthorizationCountries", JSON.stringify(["ge", "us", "ge"]));
   form.set("needsSponsorship", "yes");
+  form.set("noticePeriod", "2 weeks");
   form.set("raceEthnicities", JSON.stringify(["asian", "prefer_not_to_say"]));
   form.set("gender", "prefer_not_to_say");
   form.set("veteranStatus", "not_veteran");
@@ -42,12 +44,46 @@ async function main() {
   assert.deepEqual(profile.skills, ["TypeScript", "React"]);
   assert.deepEqual(profile.applicationAnswers.workAuthorizationCountries, ["ge", "us"]);
   assert.equal(profile.applicationAnswers.needsSponsorship, "yes");
+  assert.equal(profile.applicationAnswers.noticePeriod, "2 weeks");
   assert.deepEqual(profile.applicationAnswers.raceEthnicities, [
     "asian",
     "prefer_not_to_say",
   ]);
   assert.equal(profile.applicationAnswers.gender, "prefer_not_to_say");
   assert.match(profile.coverLetter, /TypeScript|experience and qualifications/);
+  const readyProfile: StoredCandidateProfile = {
+    ...profile,
+    resumeData: Buffer.from("readable resume data"),
+    resumeFileName: "resume.txt",
+    resumeMimeType: "text/plain",
+    resumeText:
+      "Jamie Candidate builds product software using TypeScript and React in remote teams.",
+  };
+  assert.equal(onboardingValidationError(readyProfile), null);
+  assert.match(
+    onboardingValidationError({ ...readyProfile, skills: [] }) ?? "",
+    /at least one skill/i
+  );
+  assert.match(
+    onboardingValidationError({
+      ...readyProfile,
+      applicationAnswers: {
+        ...readyProfile.applicationAnswers,
+        workAuthorizationCountries: [],
+      },
+    }) ?? "",
+    /at least one country/i
+  );
+  assert.match(
+    onboardingValidationError({
+      ...readyProfile,
+      applicationAnswers: {
+        ...readyProfile.applicationAnswers,
+        noticePeriod: "",
+      },
+    }) ?? "",
+    /notice period/i
+  );
 
   for (const [name, value] of [
     ["linkedinUrl", "github.com/not-linkedin"],
@@ -68,6 +104,7 @@ async function main() {
       skillsDeduplicated: true,
       workCountriesAndDemographicsSaved: true,
       defaultIntroductionGenerated: true,
+      requiredOnboardingFieldsValidated: true,
     })
   );
 }

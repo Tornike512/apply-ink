@@ -158,6 +158,52 @@ export function RegistrationWizard({
       }
     }
 
+    if (step === 1 && skills.length === 0) {
+      setMessage("Choose at least one skill AI can use to match jobs.");
+      form?.querySelector<HTMLButtonElement>('[aria-label="Choose skills"]')?.focus();
+      return false;
+    }
+
+    if (step === 2 && form) {
+      const formData = new FormData(form);
+      let workAuthorizationCountries: unknown = [];
+      try {
+        workAuthorizationCountries = JSON.parse(
+          String(formData.get("workAuthorizationCountries") ?? "[]")
+        );
+      } catch {
+        workAuthorizationCountries = [];
+      }
+      if (
+        !Array.isArray(workAuthorizationCountries) ||
+        workAuthorizationCountries.length === 0
+      ) {
+        setMessage("Select at least one country where you can work without sponsorship.");
+        form
+          .querySelector<HTMLButtonElement>(
+            '[aria-label="Countries where you can work without sponsorship"]'
+          )
+          ?.focus();
+        return false;
+      }
+      if (!String(formData.get("needsSponsorship") ?? "").trim()) {
+        setMessage("Choose whether you need sponsorship outside those countries.");
+        form
+          .querySelector<HTMLButtonElement>(
+            '[aria-label="Visa sponsorship outside selected countries"]'
+          )
+          ?.focus();
+        return false;
+      }
+      if (!String(formData.get("noticePeriod") ?? "").trim()) {
+        setMessage("Select your notice period.");
+        form
+          .querySelector<HTMLButtonElement>('[aria-label="Notice period"]')
+          ?.focus();
+        return false;
+      }
+    }
+
     if (step === 0 && form && !authenticatedUser) {
       const formData = new FormData(form);
       if (formData.get("password") !== formData.get("passwordConfirmation")) {
@@ -393,7 +439,7 @@ export function RegistrationWizard({
 
       <section
         id="register"
-        className="relative mx-auto w-full max-w-6xl scroll-mt-24 px-5 pt-10 sm:px-8 sm:pt-14 lg:px-12"
+        className="relative mx-auto w-full max-w-[1440px] scroll-mt-24 px-5 pt-10 sm:px-8 sm:pt-14 lg:px-12"
       >
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -495,6 +541,7 @@ export function RegistrationWizard({
               onChange={(event) =>
                 setAnswerCount(countFormAnswers(event.currentTarget))
               }
+              aria-busy={prefilling}
               data-registration-form
               className="flex h-full min-h-[30rem] flex-col rounded-3xl border border-sand bg-surface/90 shadow-[0_24px_80px_rgba(78,47,36,0.08)]"
             >
@@ -564,21 +611,24 @@ export function RegistrationWizard({
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="text-sm font-medium text-espresso sm:col-span-2">
-                      Email
+                      Email<span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                       <input name="email" type="email" autoComplete="email" required defaultValue={profile.email} className={inputClass} />
                     </label>
                     <label className="text-sm font-medium text-espresso">
-                      Password
+                      Password<span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                       <input name="password" type="password" autoComplete="new-password" minLength={8} required className={inputClass} />
                       <span className="mt-1.5 block text-xs font-normal text-espresso/50">
                         At least 8 characters with a letter and a number
                       </span>
                     </label>
                     <label className="text-sm font-medium text-espresso">
-                      Confirm password
+                      Confirm password<span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                       <input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={8} required className={inputClass} />
                     </label>
                   </div>
+                  <p className="mt-4 text-xs text-espresso/50">
+                    <span className="font-bold text-terracotta">*</span> Required to create and protect your account.
+                  </p>
                   </>
                   )}
                 </section>
@@ -587,6 +637,7 @@ export function RegistrationWizard({
                   <div className="mb-6 rounded-2xl border border-sand bg-cream/55 p-5">
                     <p className="text-base font-bold text-espresso">
                       Fill the form from your resume
+                      <span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                     </p>
                     <p className="mt-1.5 text-sm leading-6 text-espresso/60">
                       Upload your CV and Apply Ink will fill supported contact
@@ -609,7 +660,35 @@ export function RegistrationWizard({
                       }}
                       className="sr-only"
                     />
-                    {visibleResumeName && !prefilling ? (
+                    {prefilling ? (
+                      <div
+                        data-resume-reading
+                        role="status"
+                        aria-live="polite"
+                        className="mt-4 overflow-hidden rounded-2xl border border-terracotta/30 bg-surface p-5"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-terracotta/10">
+                            <Spinner />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-bold text-espresso">
+                              Reading your CV...
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs text-espresso/55">
+                              {selectedResumeName ?? visibleResumeName ?? "Saved CV"}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-sand/55">
+                          <span className="block h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-terracotta to-success" />
+                        </div>
+                        <p className="mt-3 text-xs leading-5 text-espresso/55">
+                          Checking that the document is readable, finding verified details,
+                          and filling the fields below. This usually takes a few seconds.
+                        </p>
+                      </div>
+                    ) : visibleResumeName ? (
                       <div
                         data-resume-approved
                         className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-success/35 bg-success/8 p-4"
@@ -661,12 +740,9 @@ export function RegistrationWizard({
                         ref={resumeUploadButtonRef}
                         type="button"
                         onClick={() => resumeInputRef.current?.click()}
-                        disabled={prefilling}
-                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-sienna px-5 py-2.5 text-sm font-bold text-cream transition-colors hover:bg-espresso disabled:cursor-wait disabled:opacity-60"
+                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-sienna px-5 py-2.5 text-sm font-bold text-cream transition-colors hover:bg-espresso"
                       >
-                        {prefilling
-                          ? "Reading your CV..."
-                          : "Upload CV and fill my form"}
+                        Upload CV and fill my form
                       </button>
                       <span className="text-xs leading-5 text-espresso/55">
                         {selectedResumeName ??
@@ -674,7 +750,7 @@ export function RegistrationWizard({
                       </span>
                     </div>
                     )}
-                    {profile.resumeFileName && !selectedResumeName && (
+                    {profile.resumeFileName && !selectedResumeName && !prefilling && (
                       <button
                         type="button"
                         onClick={() => void prefillFromResume()}
@@ -685,17 +761,22 @@ export function RegistrationWizard({
                       </button>
                     )}
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <fieldset
+                    disabled={prefilling}
+                    className={`grid gap-4 transition-opacity sm:grid-cols-2 ${
+                      prefilling ? "opacity-55" : "opacity-100"
+                    }`}
+                  >
                     <label className="text-sm font-medium text-espresso">
-                      First name
+                      First name<span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                       <input name="firstName" autoComplete="given-name" required defaultValue={profile.firstName} className={inputClass} />
                     </label>
                     <label className="text-sm font-medium text-espresso">
-                      Last name
+                      Last name<span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                       <input name="lastName" autoComplete="family-name" required defaultValue={profile.lastName} className={inputClass} />
                     </label>
                     <div className="text-sm font-medium text-espresso sm:col-span-2">
-                      Phone
+                      Phone<span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                       <CountryPhoneInput
                         value={phone}
                         onChange={setEditedPhone}
@@ -703,27 +784,28 @@ export function RegistrationWizard({
                       />
                     </div>
                     <label className="text-sm font-medium text-espresso">
-                      Current location
+                      Current location<span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                       <input name="location" autoComplete="address-level2" required placeholder="Tbilisi, Georgia" defaultValue={profile.location} className={inputClass} />
                     </label>
                     <label className="text-sm font-medium text-espresso">
-                      LinkedIn URL
+                      LinkedIn URL <span className="font-normal text-espresso/45">(optional)</span>
                       <input name="linkedinUrl" type="text" inputMode="url" placeholder="linkedin.com/in/your-name" defaultValue={profile.linkedinUrl} className={inputClass} />
                     </label>
                     <label className="text-sm font-medium text-espresso">
-                      Portfolio URL
+                      Portfolio URL <span className="font-normal text-espresso/45">(optional)</span>
                       <input name="portfolioUrl" type="text" inputMode="url" placeholder="yourportfolio.com" defaultValue={profile.portfolioUrl} className={inputClass} />
                     </label>
                     <label className="text-sm font-medium text-espresso sm:col-span-2">
-                      GitHub URL
+                      GitHub URL <span className="font-normal text-espresso/45">(optional)</span>
                       <input name="githubUrl" type="text" inputMode="url" placeholder="github.com/your-name" defaultValue={profile.githubUrl} className={inputClass} />
                     </label>
                     <div className="text-sm font-medium text-espresso sm:col-span-2">
                       Skills AI may use in ATS-tailored CVs
-                      <SkillsInput value={skills} onChange={setEditedSkills} />
+                      <span className="ml-1 text-terracotta" aria-hidden="true">*</span>
+                      <SkillsInput value={skills} onChange={setEditedSkills} required />
                     </div>
                     <label className="text-sm font-medium text-espresso sm:col-span-2">
-                      Default introduction or cover note
+                      Default introduction or cover note <span className="font-normal text-espresso/45">(optional)</span>
                       <textarea
                         name="coverLetter"
                         rows={4}
@@ -731,11 +813,11 @@ export function RegistrationWizard({
                         defaultValue={profile.coverLetter}
                         className={`${inputClass} resize-y`}
                       />
-                      <span className="mt-1.5 block text-xs font-normal leading-5 text-espresso/50">
-                        Leave it blank if you want AI to create one from your CV. You can edit it before registering.
-                      </span>
                     </label>
-                  </div>
+                  </fieldset>
+                  <p className="mt-4 text-xs text-espresso/50">
+                    <span className="font-bold text-terracotta">*</span> Required so AI can identify you, contact employers, match relevant jobs, and create truthful applications. Links and the cover note are optional.
+                  </p>
                 </section>
 
                 <section data-registration-step="2" hidden={step !== 2}>

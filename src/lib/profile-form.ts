@@ -31,6 +31,33 @@ const RESUME_MIME_TYPES: Readonly<Record<string, readonly string[]>> = {
 
 export class ResumeUploadError extends Error {}
 
+export function onboardingValidationError(
+  profile: StoredCandidateProfile
+): string | null {
+  if (!profile.firstName.trim() || !profile.lastName.trim()) {
+    return "Enter your first and last name.";
+  }
+  if (!profile.phone.trim() || !profile.location.trim()) {
+    return "Enter your phone number and current location.";
+  }
+  if (!profile.resumeData?.length || !profile.resumeText.trim()) {
+    return "Choose a readable resume to create your account.";
+  }
+  if (profile.skills.length === 0) {
+    return "Choose at least one skill AI can use to match jobs.";
+  }
+  if (profile.applicationAnswers.workAuthorizationCountries.length === 0) {
+    return "Select at least one country where you can work without sponsorship.";
+  }
+  if (!profile.applicationAnswers.needsSponsorship) {
+    return "Choose whether you need sponsorship outside those countries.";
+  }
+  if (!profile.applicationAnswers.noticePeriod.trim()) {
+    return "Select your notice period.";
+  }
+  return null;
+}
+
 export function publicCandidateProfile(profile: StoredCandidateProfile) {
   return {
     firstName: profile.firstName,

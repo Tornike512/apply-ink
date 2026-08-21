@@ -11,6 +11,7 @@ import {
 } from "@/lib/application-store";
 import {
   candidateProfileFromForm,
+  onboardingValidationError,
   publicCandidateProfile,
   ResumeUploadError,
 } from "@/lib/profile-form";
@@ -76,9 +77,10 @@ export async function POST(request: Request) {
     const anonymousSessionId = await getUserSessionId(request);
     const anonymousProfile = await getCandidateProfile(anonymousSessionId);
     const nextProfile = await candidateProfileFromForm(formData, anonymousProfile);
-    if (!nextProfile.resumeData?.length || !nextProfile.resumeText.trim()) {
+    const onboardingError = onboardingValidationError(nextProfile);
+    if (onboardingError) {
       return Response.json(
-        { error: "Choose a readable resume to create your account." },
+        { error: onboardingError },
         { status: 400 }
       );
     }
