@@ -1,4 +1,5 @@
 import { harvestAll, type Harvest } from "@/lib/job-sources";
+import { ensureUniqueJobIds } from "@/lib/job-identity";
 import { postgresQuery } from "@/lib/postgres";
 
 const MAX_AGE_MS = 6 * 3_600_000;
@@ -32,7 +33,7 @@ export async function readStore(): Promise<JobsStore | null> {
   const row = result.rows[0];
   return row
     ? {
-        jobs: jsonValue(row.jobs),
+        jobs: ensureUniqueJobIds(jsonValue(row.jobs)),
         sources: jsonValue(row.sources),
         refreshedAt: Number(row.refreshed_at),
       }

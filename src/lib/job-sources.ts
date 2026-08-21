@@ -1,4 +1,5 @@
 import { isWorkFromAnywhere } from "@/lib/job-eligibility";
+import { ensureUniqueJobIds } from "@/lib/job-identity";
 import type { Job } from "@/lib/jobs";
 import { getSharedCache, setSharedCache } from "@/lib/shared-cache";
 import boards from "./ats-boards.json";
@@ -1077,5 +1078,5 @@ export async function harvestAll(): Promise<Harvest> {
   }
   jobs.sort((a, b) => b.match - a.match);
 
-  return { jobs: jobs.slice(0, MAX_JOBS), sources };
+  return { jobs: ensureUniqueJobIds(jobs).slice(0, MAX_JOBS), sources };
 }
