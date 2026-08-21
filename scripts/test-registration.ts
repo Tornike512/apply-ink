@@ -230,7 +230,7 @@ async function main() {
       .locator('input[name="firstName"]')
       .isDisabled();
     const cvContinueDisabled = await page
-      .getByRole("button", { name: "Continue", exact: true })
+      .getByRole("button", { name: "Reading CV...", exact: true })
       .isDisabled();
     if (!cvFieldsDisabled || !cvContinueDisabled) {
       throw new Error(
