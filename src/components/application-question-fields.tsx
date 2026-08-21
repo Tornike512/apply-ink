@@ -1,9 +1,16 @@
+import { Dropdown } from "@/components/dropdown";
 import type { CandidateProfile, YesNoAnswer } from "@/lib/candidate-profile";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-sand bg-surface px-3.5 py-2.5 text-sm text-espresso outline-none transition-colors placeholder:text-espresso/35 focus:border-terracotta";
 
-function YesNoSelect({
+const YES_NO_OPTIONS = [
+  { value: "", label: "Not answered" },
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+] as const;
+
+function YesNoDropdown({
   name,
   label,
   value,
@@ -13,14 +20,16 @@ function YesNoSelect({
   value: YesNoAnswer;
 }) {
   return (
-    <label className="text-sm font-medium text-espresso">
-      {label}
-      <select name={name} defaultValue={value} className={inputClass}>
-        <option value="">Not answered</option>
-        <option value="yes">Yes</option>
-        <option value="no">No</option>
-      </select>
-    </label>
+    <div className="text-sm font-medium text-espresso">
+      <p>{label}</p>
+      <Dropdown
+        name={name}
+        ariaLabel={label}
+        defaultValue={value}
+        options={YES_NO_OPTIONS}
+        className="mt-1.5"
+      />
+    </div>
   );
 }
 
@@ -105,12 +114,12 @@ export function ApplicationQuestionFields({
               className={inputClass}
             />
           </label>
-          <YesNoSelect
+          <YesNoDropdown
             name="needsSponsorship"
             label="Do you need visa sponsorship?"
             value={answers.needsSponsorship}
           />
-          <YesNoSelect
+          <YesNoDropdown
             name="willingToRelocate"
             label="Are you willing to relocate?"
             value={answers.willingToRelocate}
@@ -151,27 +160,27 @@ export function ApplicationQuestionFields({
               className={inputClass}
             />
           </label>
-          <YesNoSelect
+          <YesNoDropdown
             name="medicalExperience"
             label="Medical or healthcare experience?"
             value={answers.medicalExperience}
           />
-          <YesNoSelect
+          <YesNoDropdown
             name="startupExperience"
             label="Startup or high-growth experience?"
             value={answers.startupExperience}
           />
-          <YesNoSelect
+          <YesNoDropdown
             name="aiProductionExperience"
             label="Shipped AI into production?"
             value={answers.aiProductionExperience}
           />
-          <YesNoSelect
+          <YesNoDropdown
             name="typescriptExperience"
             label="Professional TypeScript experience?"
             value={answers.typescriptExperience}
           />
-          <YesNoSelect
+          <YesNoDropdown
             name="aiFrameworksExperience"
             label="Used LangChain or similar frameworks?"
             value={answers.aiFrameworksExperience}

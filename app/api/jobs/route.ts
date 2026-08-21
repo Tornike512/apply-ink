@@ -1,6 +1,10 @@
 import { after } from "next/server";
 import { getCandidateProfile } from "@/lib/application-store";
 import { AUTO_APPLY_RULES } from "@/lib/auto-apply";
+import {
+  filterJobs,
+  jobFiltersFromSearchParams,
+} from "@/lib/job-filtering";
 import { isWorkFromAnywhere } from "@/lib/job-eligibility";
 import { personalizeJobs } from "@/lib/job-matching";
 import {
@@ -26,6 +30,7 @@ export async function GET(request: Request) {
     Math.max(1, Number(url.searchParams.get("pageSize")) || 30)
   );
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+  const filters = jobFiltersFromSearchParams(url.searchParams);
   const forceRefresh = url.searchParams.get("refresh") === "1";
 
   let store = await readStore();
@@ -43,20 +48,14 @@ export async function GET(request: Request) {
     worldwide,
     await getCandidateProfile(sessionId)
   );
-  const filtered = q
-    ? all.filter(
-        (job) =>
-          job.title.toLowerCase().includes(q) ||
-          job.company.toLowerCase().includes(q)
-      )
-    : all;
+  const filtered = filterJobs(all, q, filters);
   const start = (page - 1) * pageSize;
 
   return Response.json({
     jobs: filtered.slice(start, start + pageSize),
     total: filtered.length,
-    grandTotal: all.length,
-    highMatches: all.filter((job) => job.match >= AUTO_APPLY_RULES.minMatch)
+    grandTotal: filtered.length,
+    highMatches: filtered.filter((job) => job.match >= AUTO_APPLY_RULES.minMatch)
       .length,
     page,
     pageSize,

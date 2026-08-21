@@ -34,7 +34,7 @@ export function Sidebar({
   userName = "Apply Ink user",
 }: SidebarProps) {
   return (
-    <aside className="flex w-64 shrink-0 flex-col gap-8 border-r border-sand/70 bg-surface p-4">
+    <aside className="sticky top-0 left-0 z-20 flex h-svh w-64 shrink-0 self-start flex-col gap-8 border-r border-sand/70 bg-surface p-4">
       <Link href="/" aria-label="Apply Ink home">
         <Logo className="px-2 pt-2" />
       </Link>

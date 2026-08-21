@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BellIcon,
@@ -15,7 +15,6 @@ import { AutoApplyOverlay } from "@/components/auto-apply-overlay";
 import { AutoApplyPanel } from "@/components/auto-apply-panel";
 import { Button } from "@/components/button";
 import { Container } from "@/components/container";
-import { CvUploadButton } from "@/components/cv-upload-button";
 import { JobCard } from "@/components/job-card";
 import { JobDetailsPanel } from "@/components/job-details-panel";
 import { JobFilters } from "@/components/job-filters";
@@ -27,9 +26,21 @@ import { StatCard } from "@/components/stat-card";
 import { useApplications } from "@/hooks/use-applications";
 import { useAutoApply } from "@/hooks/use-auto-apply";
 import { useCandidateProfile } from "@/hooks/use-candidate-profile";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useGetJobs } from "@/hooks/use-get-jobs";
 import { EMPTY_CANDIDATE_PROFILE } from "@/lib/candidate-profile";
+import {
+  DEFAULT_JOB_FILTERS,
+  type JobFilterState,
+} from "@/lib/job-filtering";
 import { JOBS, type Job } from "@/lib/jobs";
+
+const DEMO_NOTIFICATIONS = [
+  "A new remote role matches your profile.",
+  "Your tailored CV is ready for review.",
+  "Three new work-from-anywhere jobs were added.",
+  "An application needs a quick answer from you.",
+] as const;
 
 export default function DashboardPage() {
   const pathname = usePathname();
@@ -44,18 +55,102 @@ export default function DashboardPage() {
       "/dashboard/settings": "Settings",
     } as Record<string, string>)[pathname] ?? "Jobs";
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebounce(search.trim(), 400);
+  const [jobFilters, setJobFilters] = useState<JobFilterState>(
+    DEFAULT_JOB_FILTERS
+  );
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsOpenTimerRef = useRef<number | null>(null);
+  const detailsCloseTimerRef = useRef<number | null>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const [notificationText, setNotificationText] = useState<string | null>(null);
   const [applicationError, setApplicationError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
-    return () => clearTimeout(timer);
-  }, [search]);
 
   useEffect(() => {
     if (pathname === "/dashboard") router.replace("/dashboard/jobs");
   }, [pathname, router]);
+
+  useEffect(() => {
+    if (!notificationText) return;
+    function closeNotification(event: PointerEvent) {
+      if (!notificationRef.current?.contains(event.target as Node)) {
+        setNotificationText(null);
+      }
+    }
+    function closeNotificationOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setNotificationText(null);
+    }
+    document.addEventListener("pointerdown", closeNotification);
+    window.addEventListener("keydown", closeNotificationOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeNotification);
+      window.removeEventListener("keydown", closeNotificationOnEscape);
+    };
+  }, [notificationText]);
+
+  function toggleNotification() {
+    setNotificationText((current) =>
+      current
+        ? null
+        : DEMO_NOTIFICATIONS[
+            Math.floor(Math.random() * DEMO_NOTIFICATIONS.length)
+          ]
+    );
+  }
+
+  const closeJobDetails = useCallback(() => {
+    if (detailsOpenTimerRef.current !== null) {
+      window.clearTimeout(detailsOpenTimerRef.current);
+      detailsOpenTimerRef.current = null;
+    }
+    setDetailsOpen(false);
+    if (detailsCloseTimerRef.current !== null) {
+      window.clearTimeout(detailsCloseTimerRef.current);
+    }
+    detailsCloseTimerRef.current = window.setTimeout(() => {
+      setSelectedJob(null);
+      detailsCloseTimerRef.current = null;
+    }, 300);
+  }, []);
+
+  function openJobDetails(job: Job) {
+    if (detailsCloseTimerRef.current !== null) {
+      window.clearTimeout(detailsCloseTimerRef.current);
+      detailsCloseTimerRef.current = null;
+    }
+    setSelectedJob(job);
+    if (selectedJob) {
+      setDetailsOpen(true);
+      return;
+    }
+    setDetailsOpen(false);
+    detailsOpenTimerRef.current = window.setTimeout(() => {
+      setDetailsOpen(true);
+      detailsOpenTimerRef.current = null;
+    }, 20);
+  }
+
+  useEffect(() => {
+    if (!selectedJob) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") closeJobDetails();
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [closeJobDetails, selectedJob]);
+
+  useEffect(
+    () => () => {
+      if (detailsOpenTimerRef.current !== null) {
+        window.clearTimeout(detailsOpenTimerRef.current);
+      }
+      if (detailsCloseTimerRef.current !== null) {
+        window.clearTimeout(detailsCloseTimerRef.current);
+      }
+    },
+    []
+  );
 
   function selectNav(label: string) {
     const path =
@@ -74,13 +169,20 @@ export default function DashboardPage() {
   const profile = profileQuery.data ?? EMPTY_CANDIDATE_PROFILE;
   const jobsQuery = useGetJobs(
     debouncedSearch,
+    jobFilters,
     profile.matchVersion,
     !profileQuery.isPending
   );
   const lastPage = jobsQuery.data?.pages.at(-1);
-  const loadedJobs =
+  const loadedJobsWithPossibleDuplicates =
     jobsQuery.data?.pages.flatMap((page) => page.jobs) ??
     (jobsQuery.isError ? JOBS : []);
+  const seenJobIds = new Set<string>();
+  const loadedJobs = loadedJobsWithPossibleDuplicates.filter((job) => {
+    if (seenJobIds.has(job.id)) return false;
+    seenJobIds.add(job.id);
+    return true;
+  });
   const loadingJobs = jobsQuery.isPending;
   const apps = useApplications();
   const autoApply = useAutoApply(loadedJobs, (job) =>
@@ -131,7 +233,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-svh w-full overflow-hidden">
+    <div
+      data-dashboard-scroll
+      className="flex h-svh w-full overflow-auto"
+    >
       <Sidebar
         active={activeNav}
         onSelect={selectNav}
@@ -143,8 +248,14 @@ export default function DashboardPage() {
         }
       />
 
-      <Container variant="parchment" className="flex min-w-0 flex-1 gap-5 p-5">
-        <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+      <Container
+        variant="parchment"
+        className="flex min-h-full min-w-0 flex-1 gap-5 p-5"
+      >
+        <section
+          data-dashboard-content
+          className="flex min-w-0 flex-1 flex-col gap-4"
+        >
           <header className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-bold text-espresso">
               {activeNav === "Applications"
@@ -155,15 +266,14 @@ export default function DashboardPage() {
                   ? "Settings"
                   : "Work From Anywhere Jobs"}
             </h1>
-            <div className="flex items-center gap-4">
-              {activeNav === "Jobs" && (
-                <CvUploadButton onOpenSettings={() => selectNav("Settings")} />
-              )}
+            <div ref={notificationRef} className="relative shrink-0">
               <button
                 type="button"
-                aria-label="Open messages"
-                onClick={() => selectNav("Messages")}
-                className="relative cursor-pointer text-espresso/70 hover:text-sienna"
+                aria-label="Open notifications"
+                aria-haspopup="dialog"
+                aria-expanded={Boolean(notificationText)}
+                onClick={toggleNotification}
+                className="relative cursor-pointer rounded-lg p-2 text-espresso/70 transition-colors hover:bg-sand/40 hover:text-sienna"
               >
                 <BellIcon width={20} height={20} />
                 {needsUserApplications.length > 0 && (
@@ -173,19 +283,20 @@ export default function DashboardPage() {
                   />
                 )}
               </button>
-              <span className="text-sm font-medium text-terracotta">
-                {activeNav === "Applications"
-                  ? `${apps.applications.length} ${
-                      apps.applications.length === 1 ? "application" : "applications"
-                    }`
-                  : activeNav === "Messages"
-                    ? `${needsUserApplications.length} need${
-                        needsUserApplications.length === 1 ? "s" : ""
-                      } your help`
-                  : activeNav === "Settings"
-                    ? "Local application profile"
-                    : `${totalMatching} matching jobs`}
-              </span>
+              {notificationText && (
+                <div
+                  role="dialog"
+                  aria-label="Notifications"
+                  className="absolute top-full right-0 z-30 mt-2 w-72 rounded-2xl border border-sand bg-surface p-4 shadow-[0_18px_50px_rgba(78,47,36,0.18)]"
+                >
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-terracotta">
+                    Notification
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-espresso/75">
+                    {notificationText}
+                  </p>
+                </div>
+              )}
             </div>
           </header>
 
@@ -275,7 +386,12 @@ export default function DashboardPage() {
             }
           />
 
-          <JobFilters search={search} onSearchChange={setSearch} />
+          <JobFilters
+            search={search}
+            onSearchChange={setSearch}
+            filters={jobFilters}
+            onFiltersChange={setJobFilters}
+          />
 
           <p className="px-1 text-xs text-espresso/60">
             {profile.cvUploaded
@@ -306,7 +422,7 @@ export default function DashboardPage() {
                 key={job.id}
                 job={job}
                 selected={selectedJob?.id === job.id}
-                onSelect={() => setSelectedJob(job)}
+                onSelect={() => openJobDetails(job)}
               />
             ))}
             {!loadingJobs && jobs.length === 0 && (
@@ -333,20 +449,40 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {selectedJob &&
-          activeNav !== "Applications" &&
-          activeNav !== "Messages" &&
-          activeNav !== "Settings" && (
-          <aside className="fixed inset-y-0 right-0 z-20 w-full max-w-md p-4 lg:static lg:w-96 lg:shrink-0 lg:p-0">
-            <JobDetailsPanel
-              job={selectedJob}
-              onClose={() => setSelectedJob(null)}
-              onApply={() => void applyToSelectedJob()}
-              application={selectedApplication}
-            />
-          </aside>
-        )}
       </Container>
+
+      {selectedJob &&
+        activeNav !== "Applications" &&
+        activeNav !== "Messages" &&
+        activeNav !== "Settings" && (
+          <div className="fixed inset-0 z-40">
+            <button
+              type="button"
+              aria-label="Close job details"
+              onClick={closeJobDetails}
+              className={`absolute inset-0 cursor-default bg-espresso/50 transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
+                detailsOpen ? "opacity-100" : "opacity-0"
+              }`}
+            />
+            <aside
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${selectedJob.title} job details`}
+              className={`absolute inset-y-0 right-0 z-10 w-full max-w-lg transform p-3 transition-[transform,opacity] duration-300 ease-in-out motion-reduce:transition-none sm:p-5 ${
+                detailsOpen
+                  ? "translate-x-0 opacity-100"
+                  : "translate-x-full opacity-0"
+              }`}
+            >
+              <JobDetailsPanel
+                job={selectedJob}
+                onClose={closeJobDetails}
+                onApply={() => void applyToSelectedJob()}
+                application={selectedApplication}
+              />
+            </aside>
+          </div>
+        )}
 
       <AutoApplyOverlay
         open={autoApply.status === "running"}

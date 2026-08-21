@@ -12,7 +12,10 @@
     "db:test": "node --conditions react-server --import tsx scripts/test-postgres.ts",
     "auth:test": "node --conditions react-server --import tsx scripts/test-auth.ts",
     "auth:api-test": "node --conditions react-server --import tsx scripts/test-auth-api.ts",
-    "auth:registration-test": "node --conditions react-server --import tsx scripts/test-registration.ts"
+    "auth:registration-test": "node --conditions react-server --import tsx scripts/test-registration.ts",
+    "job-filtering:test": "node --import tsx scripts/test-job-filtering.ts",
+    "job-identity:test": "node --import tsx scripts/test-job-identity.ts",
+    "resume-prefill:test": "node --conditions react-server --import tsx scripts/test-resume-prefill.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
