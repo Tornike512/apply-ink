@@ -154,7 +154,7 @@ async function generateContent(
   if (!response.output_parsed) {
     throw new ResumeTailoringError("The AI did not return a valid tailored CV.");
   }
-  return validateContent(response.output_parsed, job, profile);
+  return validateTailoredResumeContent(response.output_parsed, job, profile);
 }
 
 function comparable(value: string): string {
@@ -166,7 +166,7 @@ function comparable(value: string): string {
     .toLowerCase();
 }
 
-function validateContent(
+export function validateTailoredResumeContent(
   content: TailoredResumeContent,
   job: Job,
   profile: StoredCandidateProfile
@@ -233,7 +233,10 @@ function safeFilePart(value: string): string {
   );
 }
 
-function cacheDetails(job: Job, profile: StoredCandidateProfile) {
+export function getTailoredResumeCacheDetails(
+  job: Job,
+  profile: StoredCandidateProfile
+) {
   const model = process.env.OPENAI_RESUME_MODEL?.trim() || DEFAULT_MODEL;
   const inputHash = createHash("sha256")
     .update(
@@ -272,7 +275,7 @@ export async function getCachedTailoredResume(
   job: Job,
   profile: StoredCandidateProfile
 ): Promise<StoredTailoredResume | null> {
-  const output = cacheDetails(job, profile);
+  const output = getTailoredResumeCacheDetails(job, profile);
   return readTailoredResume(output.cacheKey);
 }
 
@@ -284,7 +287,7 @@ export async function prepareTailoredResume(
     throw new ResumeTailoringError("Upload a readable CV before applying.");
   }
 
-  const output = cacheDetails(job, profile);
+  const output = getTailoredResumeCacheDetails(job, profile);
   const cached = await getCachedTailoredResume(job, profile);
   if (cached) return cached;
 

@@ -70,6 +70,7 @@ jobs:
         run: |
           npm run db:test
           npm run auth:test
+          npm run job-sending:test
 
       - name: Build application
         run: npm run build
