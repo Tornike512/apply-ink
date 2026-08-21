@@ -17,6 +17,11 @@ const EvidenceYesSchema = z.object({
   evidence: z.string(),
 });
 
+const GeneratedTextSchema = z.object({
+  value: z.string(),
+  evidence: z.array(z.string()).max(5),
+});
+
 const ResumePrefillSchema = z.object({
   firstName: EvidenceTextSchema,
   lastName: EvidenceTextSchema,
@@ -25,6 +30,9 @@ const ResumePrefillSchema = z.object({
   location: EvidenceTextSchema,
   linkedinUrl: EvidenceTextSchema,
   portfolioUrl: EvidenceTextSchema,
+  githubUrl: EvidenceTextSchema,
+  coverLetter: GeneratedTextSchema,
+  skills: z.array(EvidenceTextSchema).max(30),
   yearsProductExperience: EvidenceTextSchema,
   yearsAiExperience: EvidenceTextSchema,
   medicalExperience: EvidenceYesSchema,
@@ -42,6 +50,9 @@ export type ResumePrefill = {
   location: string;
   linkedinUrl: string;
   portfolioUrl: string;
+  githubUrl: string;
+  coverLetter: string;
+  skills: string[];
   yearsProductExperience: string;
   yearsAiExperience: string;
   medicalExperience: YesNoAnswer;
@@ -59,6 +70,9 @@ const EMPTY_PREFILL: ResumePrefill = {
   location: "",
   linkedinUrl: "",
   portfolioUrl: "",
+  githubUrl: "",
+  coverLetter: "",
+  skills: [],
   yearsProductExperience: "",
   yearsAiExperience: "",
   medicalExperience: "",
@@ -103,13 +117,84 @@ function supportedYes(
     : "";
 }
 
+function normalizedWebUrl(value: string): string {
+  if (!value) return "";
+  return (/^https?:\/\//i.test(value) ? value : `https://${value}`).slice(0, 500);
+}
+
+function supportedGeneratedText(
+  resumeText: string,
+  field: { value: string; evidence: string[] },
+  maxLength: number
+): string {
+  const value = field.value.trim().slice(0, maxLength);
+  if (!value || field.evidence.length === 0) return "";
+  if (!field.evidence.every((evidence) => evidenceAppears(resumeText, evidence))) {
+    return "";
+  }
+  const resumeNumbers = new Set(comparable(resumeText).match(/\b\d+(?:[.,]\d+)?\b/g) ?? []);
+  const generatedNumbers = comparable(value).match(/\b\d+(?:[.,]\d+)?\b/g) ?? [];
+  return generatedNumbers.every((number) => resumeNumbers.has(number)) ? value : "";
+}
+
+const COMMON_SKILLS = [
+  "TypeScript",
+  "JavaScript",
+  "React",
+  "Next.js",
+  "Node.js",
+  "Python",
+  "Java",
+  "C#",
+  "C++",
+  "Go",
+  "Ruby",
+  "PHP",
+  "PostgreSQL",
+  "MySQL",
+  "MongoDB",
+  "Redis",
+  "GraphQL",
+  "REST",
+  "AWS",
+  "Azure",
+  "Google Cloud",
+  "Docker",
+  "Kubernetes",
+  "Terraform",
+  "LangChain",
+  "LlamaIndex",
+  "OpenAI",
+  "Figma",
+  "Product Management",
+  "UX Research",
+] as const;
+
+function fallbackSkills(resumeText: string): string[] {
+  const lower = resumeText.toLowerCase();
+  return COMMON_SKILLS.filter((skill) => {
+    const escaped = skill.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, "i").test(lower);
+  });
+}
+
+export function defaultIntroductionFromSkills(skills: string[]): string {
+  if (skills.length > 0) {
+    const named = skills.slice(0, 5).join(", ");
+    return `I am a professional with experience in ${named}. I am interested in applying the experience described in my CV to a strong remote team.`;
+  }
+  return "I am interested in roles that match the experience and qualifications in my CV. I would welcome the opportunity to discuss how my background could support your team.";
+}
+
 function contactFallback(resumeText: string): ResumePrefill {
   const email = resumeText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? "";
   const linkedinUrl =
-    resumeText.match(/https?:\/\/(?:www\.)?linkedin\.com\/[^\s)>,]+/i)?.[0] ?? "";
+    resumeText.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s)>,]+/i)?.[0] ?? "";
+  const githubUrl =
+    resumeText.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s)>,]+/i)?.[0] ?? "";
   const portfolioUrl =
     resumeText
-      .match(/https?:\/\/(?![^\s]*linkedin\.com)[^\s)>,]+/i)?.[0] ?? "";
+      .match(/https?:\/\/(?![^\s]*(?:linkedin|github)\.com)[^\s)>,]+/i)?.[0] ?? "";
   const phoneLine = resumeText
     .split("\n")
     .find((line) => /(?:phone|mobile|tel)\s*[:|]/i.test(line));
@@ -119,14 +204,18 @@ function contactFallback(resumeText: string): ResumePrefill {
     .find((line) => /^(?:location|based in|address)\s*[:|]/i.test(line.trim()));
   const location = locationLine?.replace(/^[^:|]+[:|]\s*/, "").trim() ?? "";
   const lower = resumeText.toLowerCase();
+  const skills = fallbackSkills(resumeText);
 
   return {
     ...EMPTY_PREFILL,
     email,
     phone,
     location: location.slice(0, 150),
-    linkedinUrl: linkedinUrl.slice(0, 500),
-    portfolioUrl: portfolioUrl.slice(0, 500),
+    linkedinUrl: normalizedWebUrl(linkedinUrl),
+    portfolioUrl: normalizedWebUrl(portfolioUrl),
+    githubUrl: normalizedWebUrl(githubUrl),
+    coverLetter: defaultIntroductionFromSkills(skills),
+    skills,
     medicalExperience: /healthcare|health care|medical|clinical|patient/.test(lower)
       ? "yes"
       : "",
@@ -156,6 +245,8 @@ EVIDENCE RULES:
 - Return a value only when the resume directly supports it. Otherwise return an empty value and empty evidence.
 - Evidence must be a short, exact, contiguous quote copied from the resume.
 - Never infer salary, work authorization, sponsorship, relocation, notice period, or personal demographics.
+- Write a short, first-person default introduction using only facts supported by the supplied evidence quotes. Keep it general, not employer-specific.
+- Extract concrete tools, technologies, disciplines, and professional skills only when each one appears in the resume.
 - Never return "no" for experience. Missing evidence means an empty value.
 - Years of experience must be stated explicitly in the resume; do not calculate from dates.
 - Mark experience as "yes" only when the resume clearly demonstrates it in professional or project work.
@@ -203,6 +294,19 @@ export async function prefillFromResumeText(
         portfolioUrl:
           supportedText(resumeText, parsed.portfolioUrl, 500) ||
           fallback.portfolioUrl,
+        githubUrl:
+          supportedText(resumeText, parsed.githubUrl, 500) || fallback.githubUrl,
+        coverLetter:
+          supportedGeneratedText(resumeText, parsed.coverLetter, 1_500) ||
+          fallback.coverLetter,
+        skills: Array.from(
+          new Set([
+            ...parsed.skills
+              .map((skill) => supportedText(resumeText, skill, 80))
+              .filter(Boolean),
+            ...fallback.skills,
+          ])
+        ).slice(0, 50),
         yearsProductExperience: supportedYears(
           resumeText,
           parsed.yearsProductExperience

@@ -247,6 +247,14 @@ async function fillFrame(
   );
   await fill(
     [
+      'input[name*="github" i]',
+      'input[id*="github" i]',
+      'input[placeholder*="github" i]',
+    ],
+    profile.githubUrl
+  );
+  await fill(
+    [
       'textarea[name*="cover_letter" i]',
       'textarea[id*="cover_letter" i]',
       'textarea[aria-label*="cover letter" i]',
@@ -259,17 +267,8 @@ async function fillFrame(
   };
   const answers = profile.applicationAnswers;
   await labeledFill(
-    [/expected annual salary/i, /annual compensation/i, /^expected salary$/i],
-    answers.expectedAnnualSalary
-  );
-  await labeledFill(
-    [/expected hourly rate/i, /hourly rate/i],
-    answers.expectedHourlyRate
-  );
-  await labeledFill([/preferred work location/i], answers.preferredLocation);
-  await labeledFill(
-    [/work authori[sz]ation/i, /eligible to work/i],
-    answers.authorizedWorkRegions
+    [/countries.*authori[sz]ed to work/i, /work authori[sz]ation countries/i],
+    answers.workAuthorizationCountries.join(", ").toUpperCase()
   );
   await labeledFill([/notice period/i, /available to start/i], answers.noticePeriod);
   await labeledFill(
@@ -288,7 +287,6 @@ async function fillFrame(
     if (await chooseYesNo(frame, questions, answer)) filled += 1;
   };
   await yesNo([/visa sponsorship/i, /require sponsorship/i], answers.needsSponsorship);
-  await yesNo([/willing to relocate/i], answers.willingToRelocate);
   await yesNo([/medical field/i, /healthcare experience/i], answers.medicalExperience);
   await yesNo([/startup/i, /high-growth experience/i], answers.startupExperience);
   await yesNo(

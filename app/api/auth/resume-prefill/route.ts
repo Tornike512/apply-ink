@@ -32,7 +32,9 @@ export async function POST(request: Request) {
     const result = await prefillFromResumeText(resumeText, { useAi: canUseAi });
 
     const filledFields = Object.entries(result.answers)
-      .filter(([, value]) => value !== "")
+      .filter(([, value]) =>
+        Array.isArray(value) ? value.length > 0 : value !== ""
+      )
       .map(([name]) => name);
     return Response.json({ ...result, filledFields });
   } catch (error) {

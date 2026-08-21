@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ApplicationQuestionFields } from "@/components/application-question-fields";
 import { Button } from "@/components/button";
 import { CountryPhoneInput } from "@/components/country-phone-input";
+import { SkillsInput } from "@/components/skills-input";
 import { Spinner } from "@/components/spinner";
 import {
   CANDIDATE_PROFILE_KEY,
@@ -15,6 +16,7 @@ import {
 import {
   APPLICATION_ANSWER_KEYS,
   EMPTY_CANDIDATE_PROFILE,
+  type ApplicationAnswers,
   type CandidateProfile,
 } from "@/lib/candidate-profile";
 
@@ -32,7 +34,7 @@ const STEPS = [
   },
   {
     title: "Preferences",
-    description: "Compensation, location, and availability",
+    description: "Work authorization and availability",
   },
   {
     title: "Experience",
@@ -47,7 +49,7 @@ const STEPS = [
 type ValidatableField = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
 type ResumePrefillResponse = {
-  answers?: Record<string, string>;
+  answers?: Record<string, string | string[]>;
   filledFields?: string[];
   error?: string;
 };
@@ -56,11 +58,30 @@ function countFormAnswers(form: HTMLFormElement): number {
   const formData = new FormData(form);
   return APPLICATION_ANSWER_KEYS.filter((key) => {
     const value = formData.get(key);
-    return typeof value === "string" && value.trim().length > 0;
+    if (typeof value !== "string" || !value.trim()) return false;
+    if (key !== "workAuthorizationCountries" && key !== "raceEthnicities") {
+      return true;
+    }
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) && parsed.length > 0;
+    } catch {
+      return false;
+    }
   }).length;
 }
 
-export function RegistrationWizard() {
+type RegistrationWizardProps = {
+  googleEnabled: boolean;
+  authenticatedUser?: { email: string } | null;
+  googleError?: string | null;
+};
+
+export function RegistrationWizard({
+  googleEnabled,
+  authenticatedUser = null,
+  googleError = null,
+}: RegistrationWizardProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const profileQuery = useCandidateProfile();
@@ -78,6 +99,11 @@ export function RegistrationWizard() {
   const [message, setMessage] = useState<string | null>(null);
   const [answerCount, setAnswerCount] = useState<number | null>(null);
   const [editedPhone, setEditedPhone] = useState<string | null>(null);
+  const [editedSkills, setEditedSkills] = useState<string[] | null>(null);
+  const [inferredTechnicalAnswers, setInferredTechnicalAnswers] = useState<
+    Pick<ApplicationAnswers, "typescriptExperience" | "aiFrameworksExperience"> | null
+  >(null);
+  const [showAutomationTip, setShowAutomationTip] = useState(true);
   const [selectedResumeName, setSelectedResumeName] = useState<string | null>(
     null
   );
@@ -85,6 +111,7 @@ export function RegistrationWizard() {
     null
   );
   const phone = editedPhone ?? profile.phone;
+  const skills = editedSkills ?? profile.skills;
   const visibleResumeName = approvedResumeName ?? profile.resumeFileName;
   const visibleAnswerCount = answerCount ?? profile.applicationAnswerCount;
   const coverage = Math.round(
@@ -131,7 +158,7 @@ export function RegistrationWizard() {
       }
     }
 
-    if (step === 0 && form) {
+    if (step === 0 && form && !authenticatedUser) {
       const formData = new FormData(form);
       if (formData.get("password") !== formData.get("passwordConfirmation")) {
         setMessage("Passwords do not match.");
@@ -167,6 +194,34 @@ export function RegistrationWizard() {
 
       let appliedCount = 0;
       for (const [name, value] of Object.entries(data.answers)) {
+        if (name === "skills" && Array.isArray(value)) {
+          const merged = Array.from(new Set([...skills, ...value])).slice(0, 50);
+          setEditedSkills(merged);
+          appliedCount += Math.max(0, merged.length - skills.length);
+          continue;
+        }
+        if (typeof value !== "string") continue;
+        if (
+          (name === "typescriptExperience" || name === "aiFrameworksExperience") &&
+          (value === "yes" || value === "no" || value === "")
+        ) {
+          if (
+            value &&
+            !(inferredTechnicalAnswers?.[name] ?? profile.applicationAnswers[name])
+          ) {
+            setInferredTechnicalAnswers((current) => ({
+              typescriptExperience:
+                current?.typescriptExperience ??
+                profile.applicationAnswers.typescriptExperience,
+              aiFrameworksExperience:
+                current?.aiFrameworksExperience ??
+                profile.applicationAnswers.aiFrameworksExperience,
+              [name]: value,
+            }));
+            appliedCount += 1;
+          }
+          continue;
+        }
         if (name === "phone") {
           if (!phone.trim() && value.trim()) {
             setEditedPhone(value);
@@ -286,7 +341,7 @@ export function RegistrationWizard() {
     const passwordConfirmation = String(
       formData.get("passwordConfirmation") ?? ""
     );
-    if (password !== passwordConfirmation) {
+    if (!authenticatedUser && password !== passwordConfirmation) {
       setStep(0);
       setMessage("Passwords do not match.");
       setSaving(false);
@@ -295,8 +350,10 @@ export function RegistrationWizard() {
     }
     formData.set("finishOnboarding", "1");
     try {
-      const accountResponse = await fetch("/api/auth/register", {
-        method: "POST",
+      const accountResponse = await fetch(
+        authenticatedUser ? "/api/profile" : "/api/auth/register",
+        {
+        method: authenticatedUser ? "PUT" : "POST",
         headers: { "x-apply-ink": "1" },
         body: formData,
       });
@@ -455,6 +512,56 @@ export function RegistrationWizard() {
                 </div>
 
                 <section data-registration-step="0" hidden={step !== 0}>
+                  {googleError && !authenticatedUser && (
+                    <p role="alert" className="mb-4 rounded-xl border border-sienna/25 bg-sienna/8 px-4 py-3 text-sm text-sienna">
+                      {googleError}
+                    </p>
+                  )}
+                  {authenticatedUser ? (
+                    <div className="rounded-2xl border border-success/30 bg-success/8 p-5">
+                      <p className="text-sm font-bold text-success">
+                        Google account connected
+                      </p>
+                      <p className="mt-1 text-sm text-espresso/65">
+                        {authenticatedUser.email}
+                      </p>
+                      <input type="hidden" name="email" value={authenticatedUser.email} readOnly />
+                      <p className="mt-3 text-xs leading-5 text-espresso/50">
+                        Continue to upload your CV and finish your application profile.
+                      </p>
+                    </div>
+                  ) : (
+                  <>
+                  <a
+                    href="/api/auth/google?intent=register&next=/register"
+                    aria-disabled={!googleEnabled}
+                    onClick={(event) => {
+                      if (!googleEnabled) event.preventDefault();
+                    }}
+                    className={`flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-sand bg-surface px-5 py-3 text-sm font-bold text-espresso transition-colors ${
+                      googleEnabled
+                        ? "hover:border-terracotta hover:bg-cream/45"
+                        : "cursor-not-allowed opacity-50"
+                    }`}
+                  >
+                    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                      <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.41Z" />
+                      <path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.36l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.61 0-4.82-1.76-5.61-4.13H3.05v2.62A10 10 0 0 0 12 22Z" />
+                      <path fill="#FBBC05" d="M6.39 13.93A6 6 0 0 1 6.08 12c0-.67.12-1.32.31-1.93V7.45H3.05A10 10 0 0 0 2 12c0 1.61.39 3.14 1.05 4.55l3.34-2.62Z" />
+                      <path fill="#EA4335" d="M12 5.94c1.47 0 2.78.5 3.82 1.49l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.95 5.45l3.34 2.62C7.18 7.7 9.39 5.94 12 5.94Z" />
+                    </svg>
+                    Continue with Google
+                  </a>
+                  {!googleEnabled && (
+                    <p className="mt-2 text-xs text-sienna">
+                      Google sign-in will activate after its two deployment keys are added.
+                    </p>
+                  )}
+                  <div className="my-5 flex items-center gap-3" aria-hidden="true">
+                    <span className="h-px flex-1 bg-sand" />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-espresso/35">or use email</span>
+                    <span className="h-px flex-1 bg-sand" />
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="text-sm font-medium text-espresso sm:col-span-2">
                       Email
@@ -462,16 +569,18 @@ export function RegistrationWizard() {
                     </label>
                     <label className="text-sm font-medium text-espresso">
                       Password
-                      <input name="password" type="password" autoComplete="new-password" minLength={10} required className={inputClass} />
+                      <input name="password" type="password" autoComplete="new-password" minLength={8} required className={inputClass} />
                       <span className="mt-1.5 block text-xs font-normal text-espresso/50">
-                        At least 10 characters with a letter and a number
+                        At least 8 characters with a letter and a number
                       </span>
                     </label>
                     <label className="text-sm font-medium text-espresso">
                       Confirm password
-                      <input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={10} required className={inputClass} />
+                      <input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={8} required className={inputClass} />
                     </label>
                   </div>
+                  </>
+                  )}
                 </section>
 
                 <section data-registration-step="1" hidden={step !== 1}>
@@ -599,21 +708,32 @@ export function RegistrationWizard() {
                     </label>
                     <label className="text-sm font-medium text-espresso">
                       LinkedIn URL
-                      <input name="linkedinUrl" type="url" defaultValue={profile.linkedinUrl} className={inputClass} />
+                      <input name="linkedinUrl" type="text" inputMode="url" placeholder="linkedin.com/in/your-name" defaultValue={profile.linkedinUrl} className={inputClass} />
                     </label>
                     <label className="text-sm font-medium text-espresso">
                       Portfolio URL
-                      <input name="portfolioUrl" type="url" defaultValue={profile.portfolioUrl} className={inputClass} />
+                      <input name="portfolioUrl" type="text" inputMode="url" placeholder="yourportfolio.com" defaultValue={profile.portfolioUrl} className={inputClass} />
                     </label>
+                    <label className="text-sm font-medium text-espresso sm:col-span-2">
+                      GitHub URL
+                      <input name="githubUrl" type="text" inputMode="url" placeholder="github.com/your-name" defaultValue={profile.githubUrl} className={inputClass} />
+                    </label>
+                    <div className="text-sm font-medium text-espresso sm:col-span-2">
+                      Skills AI may use in ATS-tailored CVs
+                      <SkillsInput value={skills} onChange={setEditedSkills} />
+                    </div>
                     <label className="text-sm font-medium text-espresso sm:col-span-2">
                       Default introduction or cover note
                       <textarea
                         name="coverLetter"
                         rows={4}
-                        placeholder="A short introduction AI may adapt for each role."
+                        placeholder="AI will write a truthful introduction from your CV if you leave this blank."
                         defaultValue={profile.coverLetter}
                         className={`${inputClass} resize-y`}
                       />
+                      <span className="mt-1.5 block text-xs font-normal leading-5 text-espresso/50">
+                        Leave it blank if you want AI to create one from your CV. You can edit it before registering.
+                      </span>
                     </label>
                   </div>
                 </section>
@@ -623,7 +743,11 @@ export function RegistrationWizard() {
                 </section>
 
                 <section data-registration-step="3" hidden={step !== 3}>
-                  <ApplicationQuestionFields profile={profile} sections={["experience"]} />
+                  <ApplicationQuestionFields
+                    profile={profile}
+                    sections={["experience"]}
+                    inferredTechnicalAnswers={inferredTechnicalAnswers ?? undefined}
+                  />
                 </section>
 
                 <section data-registration-step="4" hidden={step !== 4}>
@@ -664,7 +788,13 @@ export function RegistrationWizard() {
                     </Button>
                   ) : (
                     <Button type="submit" variant="primary" disabled={saving} className="min-w-48 rounded-xl px-6 py-2.5">
-                      {saving ? "Creating account..." : "Create account and find jobs"}
+                      {saving
+                        ? authenticatedUser
+                          ? "Finishing setup..."
+                          : "Creating account..."
+                        : authenticatedUser
+                          ? "Finish setup and find jobs"
+                          : "Create account and find jobs"}
                     </Button>
                   )}
                 </div>
@@ -673,6 +803,37 @@ export function RegistrationWizard() {
           </div>
         )}
       </section>
+      {showAutomationTip && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-espresso/55 p-5 backdrop-blur-[2px]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Why these questions matter"
+            className="w-full max-w-md rounded-3xl border border-sand bg-surface p-6 shadow-[0_28px_90px_rgba(39,24,18,0.28)] sm:p-8"
+          >
+            <span className="flex size-11 items-center justify-center rounded-2xl bg-terracotta/12 text-xl" aria-hidden="true">
+              ✦
+            </span>
+            <h2 className="mt-5 text-2xl font-bold text-espresso">
+              More answers mean fewer interruptions
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-espresso/65">
+              The more questions you answer, the more job applications AI can
+              submit without asking for your help. Successful automatic submissions
+              are recorded in Messages. You only receive a “Needs you” alert when an
+              employer asks something missing or requires verification such as a CAPTCHA.
+            </p>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setShowAutomationTip(false)}
+              className="mt-6 min-h-11 w-full rounded-xl bg-sienna px-5 py-2.5 text-sm font-bold text-cream transition-colors hover:bg-espresso"
+            >
+              Continue registration
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

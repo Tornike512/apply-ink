@@ -18,6 +18,7 @@ type UserRow = {
   first_name: string;
   last_name: string;
   password_hash: string;
+  google_subject: string | null;
   session_version: number;
   created_at: string | number;
   updated_at: string | number;
@@ -32,6 +33,7 @@ export type AuthUser = {
 };
 
 export class DuplicateEmailError extends Error {}
+export class GoogleIdentityError extends Error {}
 
 function mapUser(row: UserRow): AuthUser {
   return {
@@ -48,7 +50,7 @@ export function normalizeEmail(email: string): string {
 }
 
 export function passwordValidationError(password: string): string | null {
-  if (password.length < 10) return "Password must be at least 10 characters.";
+  if (password.length < 8) return "Password must be at least 8 characters.";
   if (password.length > 200) return "Password must be 200 characters or fewer.";
   if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
     return "Password must include at least one letter and one number.";
@@ -118,6 +120,68 @@ export async function createUser(input: {
     }
     throw error;
   }
+}
+
+export async function findOrCreateGoogleUser(input: {
+  subject: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}): Promise<{ user: AuthUser; created: boolean }> {
+  const email = normalizeEmail(input.email);
+  if (!input.subject.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
+    throw new GoogleIdentityError("Google did not provide a verified identity.");
+  }
+  return postgresTransaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+      `google-user:${email}`,
+    ]);
+    const subjectResult = await client.query<UserRow>(
+      "SELECT * FROM users WHERE google_subject = $1",
+      [input.subject]
+    );
+    if (subjectResult.rows[0]) {
+      return { user: mapUser(subjectResult.rows[0]), created: false };
+    }
+
+    const emailResult = await client.query<UserRow>(
+      "SELECT * FROM users WHERE email = $1 FOR UPDATE",
+      [email]
+    );
+    const existing = emailResult.rows[0];
+    if (existing) {
+      if (existing.google_subject && existing.google_subject !== input.subject) {
+        throw new GoogleIdentityError(
+          "This email is already connected to a different Google account."
+        );
+      }
+      const linked = await client.query<UserRow>(
+        `UPDATE users SET google_subject = $1, updated_at = $2
+         WHERE id = $3 RETURNING *`,
+        [input.subject, Date.now(), existing.id]
+      );
+      return { user: mapUser(linked.rows[0]), created: false };
+    }
+
+    const now = Date.now();
+    const created = await client.query<UserRow>(
+      `INSERT INTO users (
+        id, email, first_name, last_name, password_hash, google_subject,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+      RETURNING *`,
+      [
+        randomUUID(),
+        email,
+        input.firstName.trim().slice(0, 100),
+        input.lastName.trim().slice(0, 100),
+        await hashPassword(randomBytes(32).toString("base64url")),
+        input.subject,
+        now,
+      ]
+    );
+    return { user: mapUser(created.rows[0]), created: true };
+  });
 }
 
 export async function getUserById(id: string): Promise<AuthUser | null> {

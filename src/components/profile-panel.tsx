@@ -5,6 +5,7 @@ import { Badge } from "@/components/badge";
 import { Button } from "@/components/button";
 import { Container } from "@/components/container";
 import { CountryPhoneInput } from "@/components/country-phone-input";
+import { SkillsInput } from "@/components/skills-input";
 import { Spinner } from "@/components/spinner";
 import {
   CANDIDATE_PROFILE_KEY,
@@ -26,8 +27,10 @@ export function ProfilePanel() {
   const [saving, setSaving] = useState(false);
   const [resumeSaving, setResumeSaving] = useState(false);
   const [editedPhone, setEditedPhone] = useState<string | null>(null);
+  const [editedSkills, setEditedSkills] = useState<string[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const phone = editedPhone ?? profile.phone;
+  const skills = editedSkills ?? profile.skills;
 
   async function uploadResume(resume: File) {
     setResumeSaving(true);
@@ -100,6 +103,7 @@ export function ProfilePanel() {
       }
       queryClient.setQueryData(CANDIDATE_PROFILE_KEY, data.profile);
       setEditedPhone(null);
+      setEditedSkills(null);
       setMessage(
         data.profile.tailoringReady
           ? "Saved. Job matches are updating; CV tailoring is ready."
@@ -145,9 +149,8 @@ export function ProfilePanel() {
         <div>
           <h2 className="text-xl font-bold text-espresso">Application profile</h2>
           <p className="mt-1 max-w-2xl text-sm text-espresso/65">
-            Your profile is isolated to this browser session. Job matches update
-            automatically from your CV; AI tailoring runs only when you start an
-            application.
+            Your profile is saved to your account. Job matches update automatically
+            from your CV; AI tailoring runs only when you start an application.
           </p>
           <p className="mt-2 text-xs font-medium text-sienna">
             {profile.applicationAnswerCount} of {profile.applicationAnswerTotal}{" "}
@@ -210,7 +213,9 @@ export function ProfilePanel() {
           LinkedIn URL
           <input
             name="linkedinUrl"
-            type="url"
+            type="text"
+            inputMode="url"
+            placeholder="linkedin.com/in/your-name"
             defaultValue={profile.linkedinUrl}
             className={`mt-1 ${inputClass}`}
           />
@@ -219,8 +224,21 @@ export function ProfilePanel() {
           Portfolio URL
           <input
             name="portfolioUrl"
-            type="url"
+            type="text"
+            inputMode="url"
+            placeholder="yourportfolio.com"
             defaultValue={profile.portfolioUrl}
+            className={`mt-1 ${inputClass}`}
+          />
+        </label>
+        <label className="text-sm font-medium text-espresso">
+          GitHub URL
+          <input
+            name="githubUrl"
+            type="text"
+            inputMode="url"
+            placeholder="github.com/your-name"
+            defaultValue={profile.githubUrl}
             className={`mt-1 ${inputClass}`}
           />
         </label>
@@ -285,28 +303,21 @@ export function ProfilePanel() {
             Maximum 10 MB. A green check means text was extracted successfully.
           </span>
         </div>
-        <label className="text-sm font-medium text-espresso">
-          Master skills inventory (optional)
-          <input
-            name="skillsInventory"
-            type="file"
-            accept=".json,application/json"
-            className={`mt-1 ${inputClass}`}
-          />
-          <span className="mt-1 block text-xs font-normal text-espresso/55">
-            {profile.skillsInventoryFileName
-              ? `${profile.skillsInventoryFileName} - ${profile.skillsInventoryCount} skills`
-              : "JSON skills are filtered by confidence before tailoring"}
-          </span>
-        </label>
+        <div className="text-sm font-medium text-espresso md:col-span-2">
+          Skills AI may use in ATS-tailored CVs
+          <SkillsInput value={skills} onChange={setEditedSkills} />
+        </div>
         <label className="text-sm font-medium text-espresso md:col-span-2">
-          Default cover letter
+          Default introduction or cover note
           <textarea
             name="coverLetter"
             rows={6}
             defaultValue={profile.coverLetter}
             className={`mt-1 resize-y ${inputClass}`}
           />
+          <span className="mt-1 block text-xs font-normal text-espresso/55">
+            If this is blank, AI creates a truthful introduction from your CV.
+          </span>
         </label>
         <div className="my-2 h-px bg-sand/65 md:col-span-2" />
         <div className="md:col-span-2">

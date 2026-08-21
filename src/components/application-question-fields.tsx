@@ -1,5 +1,14 @@
+"use client";
+
+import { useState } from "react";
+import { CountryMultiSelect } from "@/components/country-multi-select";
 import { Dropdown } from "@/components/dropdown";
-import type { CandidateProfile, YesNoAnswer } from "@/lib/candidate-profile";
+import { MultiSelectDropdown } from "@/components/multi-select-dropdown";
+import type {
+  ApplicationAnswers,
+  CandidateProfile,
+  YesNoAnswer,
+} from "@/lib/candidate-profile";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-sand bg-surface px-3.5 py-2.5 text-sm text-espresso outline-none transition-colors placeholder:text-espresso/35 focus:border-terracotta";
@@ -8,6 +17,48 @@ const YES_NO_OPTIONS = [
   { value: "", label: "Not answered" },
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
+] as const;
+
+const SPONSORSHIP_OPTIONS = [
+  { value: "", label: "Not answered" },
+  { value: "no", label: "No — selected countries only" },
+  { value: "yes", label: "Yes — outside selected countries" },
+] as const;
+
+const GENDER_OPTIONS = [
+  { value: "", label: "Not answered" },
+  { value: "woman", label: "Woman" },
+  { value: "man", label: "Man" },
+  { value: "non_binary", label: "Non-binary" },
+  { value: "self_describe", label: "Self-describe when asked" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+] as const;
+
+const VETERAN_OPTIONS = [
+  { value: "", label: "Not answered" },
+  { value: "not_veteran", label: "I am not a protected veteran" },
+  { value: "protected_veteran", label: "I identify as a protected veteran" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+] as const;
+
+const DISABILITY_OPTIONS = [
+  { value: "", label: "Not answered" },
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+] as const;
+
+const RACE_OPTIONS = [
+  { value: "asian", label: "Asian" },
+  { value: "black", label: "Black or African descent" },
+  { value: "hispanic_latino", label: "Hispanic or Latino/a/x" },
+  { value: "indigenous", label: "Indigenous or Native" },
+  { value: "middle_eastern_north_african", label: "Middle Eastern or North African" },
+  { value: "pacific_islander", label: "Native Hawaiian or Pacific Islander" },
+  { value: "white", label: "White" },
+  { value: "multiracial", label: "Two or more races" },
+  { value: "self_describe", label: "Self-describe when asked" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
 ] as const;
 
 function YesNoDropdown({
@@ -37,12 +88,23 @@ export function ApplicationQuestionFields({
   profile,
   showPermissions = true,
   sections,
+  inferredTechnicalAnswers,
 }: {
   profile: CandidateProfile;
   showPermissions?: boolean;
   sections?: Array<"preferences" | "experience" | "permissions">;
+  inferredTechnicalAnswers?: Pick<
+    ApplicationAnswers,
+    "typescriptExperience" | "aiFrameworksExperience"
+  >;
 }) {
   const answers = profile.applicationAnswers;
+  const [workCountries, setWorkCountries] = useState(
+    answers.workAuthorizationCountries
+  );
+  const [raceEthnicities, setRaceEthnicities] = useState(
+    answers.raceEthnicities
+  );
   const visibleSections = new Set(
     sections ?? ["preferences", "experience", "permissions"]
   );
@@ -50,52 +112,34 @@ export function ApplicationQuestionFields({
     <div className="grid gap-7">
       {visibleSections.has("preferences") && <fieldset>
         <legend className="text-lg font-bold text-espresso">
-          Compensation and availability
+          Work authorization and timing
         </legend>
         <p className="mt-1 text-sm leading-6 text-espresso/60">
-          Used only when an employer requires these answers. Leave anything blank
-          that you have not decided yet.
+          This does not mean you can work in every country. Select only countries
+          where you already have citizenship, residency, or valid work permission.
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <label className="text-sm font-medium text-espresso">
-            Expected annual salary
-            <input
-              name="expectedAnnualSalary"
-              inputMode="decimal"
-              placeholder="70000"
-              defaultValue={answers.expectedAnnualSalary}
-              className={inputClass}
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="text-sm font-medium text-espresso sm:col-span-2">
+            Countries where you can work without employer sponsorship
+            <CountryMultiSelect
+              values={workCountries}
+              onChange={setWorkCountries}
             />
-          </label>
-          <label className="text-sm font-medium text-espresso">
-            Expected hourly rate
-            <input
-              name="expectedHourlyRate"
-              inputMode="decimal"
-              placeholder="45"
-              defaultValue={answers.expectedHourlyRate}
-              className={inputClass}
+          </div>
+          <div className="text-sm font-medium text-espresso">
+            <p>Will you need employer visa sponsorship outside those countries?</p>
+            <Dropdown
+              name="needsSponsorship"
+              ariaLabel="Visa sponsorship outside selected countries"
+              defaultValue={answers.needsSponsorship}
+              options={SPONSORSHIP_OPTIONS}
+              className="mt-1.5"
             />
-          </label>
-          <label className="text-sm font-medium text-espresso">
-            Currency
-            <input
-              name="salaryCurrency"
-              maxLength={3}
-              placeholder="EUR"
-              defaultValue={answers.salaryCurrency}
-              className={`${inputClass} uppercase`}
-            />
-          </label>
-          <label className="text-sm font-medium text-espresso sm:col-span-2">
-            Preferred work location
-            <input
-              name="preferredLocation"
-              placeholder="Remote, Tbilisi, or anywhere in Europe"
-              defaultValue={answers.preferredLocation}
-              className={inputClass}
-            />
-          </label>
+            <p className="mt-1.5 text-xs font-normal leading-5 text-espresso/50">
+              “Yes” means AI will not claim you can work everywhere; it will keep
+              applications within your selected countries unless sponsorship is offered.
+            </p>
+          </div>
           <label className="text-sm font-medium text-espresso">
             Notice period
             <input
@@ -105,25 +149,6 @@ export function ApplicationQuestionFields({
               className={inputClass}
             />
           </label>
-          <label className="text-sm font-medium text-espresso sm:col-span-3">
-            Countries or regions where you can legally work
-            <input
-              name="authorizedWorkRegions"
-              placeholder="Georgia; EU with sponsorship"
-              defaultValue={answers.authorizedWorkRegions}
-              className={inputClass}
-            />
-          </label>
-          <YesNoDropdown
-            name="needsSponsorship"
-            label="Do you need visa sponsorship?"
-            value={answers.needsSponsorship}
-          />
-          <YesNoDropdown
-            name="willingToRelocate"
-            label="Are you willing to relocate?"
-            value={answers.willingToRelocate}
-          />
         </div>
       </fieldset>}
 
@@ -175,16 +200,71 @@ export function ApplicationQuestionFields({
             label="Shipped AI into production?"
             value={answers.aiProductionExperience}
           />
-          <YesNoDropdown
-            name="typescriptExperience"
-            label="Professional TypeScript experience?"
-            value={answers.typescriptExperience}
-          />
-          <YesNoDropdown
-            name="aiFrameworksExperience"
-            label="Used LangChain or similar frameworks?"
-            value={answers.aiFrameworksExperience}
-          />
+        </div>
+        <input
+          type="hidden"
+          name="typescriptExperience"
+          value={inferredTechnicalAnswers?.typescriptExperience ?? answers.typescriptExperience}
+          readOnly
+        />
+        <input
+          type="hidden"
+          name="aiFrameworksExperience"
+          value={inferredTechnicalAnswers?.aiFrameworksExperience ?? answers.aiFrameworksExperience}
+          readOnly
+        />
+
+        <div className="mt-7 border-t border-sand/70 pt-6">
+          <h3 className="text-base font-bold text-espresso">
+            Voluntary employer demographics
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-espresso/60">
+            Some employers ask these equal-opportunity questions. They are optional,
+            never inferred from your CV, and never used to match or rank jobs.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="text-sm font-medium text-espresso">
+              <p>Gender</p>
+              <Dropdown
+                name="gender"
+                ariaLabel="Gender"
+                defaultValue={answers.gender}
+                options={GENDER_OPTIONS}
+                className="mt-1.5"
+              />
+            </div>
+            <div className="text-sm font-medium text-espresso">
+              <p>Race or ethnicity</p>
+              <MultiSelectDropdown
+                name="raceEthnicities"
+                ariaLabel="Race or ethnicity"
+                options={RACE_OPTIONS}
+                values={raceEthnicities}
+                onValuesChange={setRaceEthnicities}
+                placeholder="Optional — choose any that apply"
+              />
+            </div>
+            <div className="text-sm font-medium text-espresso">
+              <p>Veteran status</p>
+              <Dropdown
+                name="veteranStatus"
+                ariaLabel="Veteran status"
+                defaultValue={answers.veteranStatus}
+                options={VETERAN_OPTIONS}
+                className="mt-1.5"
+              />
+            </div>
+            <div className="text-sm font-medium text-espresso">
+              <p>Disability status</p>
+              <Dropdown
+                name="disabilityStatus"
+                ariaLabel="Disability status"
+                defaultValue={answers.disabilityStatus}
+                options={DISABILITY_OPTIONS}
+                className="mt-1.5"
+              />
+            </div>
+          </div>
         </div>
       </fieldset>}
 

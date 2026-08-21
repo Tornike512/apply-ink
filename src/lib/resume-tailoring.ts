@@ -257,6 +257,7 @@ export function getTailoredResumeCacheDetails(
           location: profile.location,
           linkedinUrl: profile.linkedinUrl,
           portfolioUrl: profile.portfolioUrl,
+          githubUrl: profile.githubUrl,
           resumeText: profile.resumeText,
           skillsInventoryJson: profile.skillsInventoryJson,
         },

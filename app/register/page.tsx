@@ -1,14 +1,32 @@
 import { redirect } from "next/navigation";
 import { RegistrationWizard } from "@/components/registration-landing";
 import { SiteHeader } from "@/components/site-header";
-import { getCurrentUser } from "@/lib/auth";
+import { authenticatedSessionId, getCurrentUser } from "@/lib/auth";
+import { getCandidateProfile } from "@/lib/application-store";
+import { googleAuthConfigured } from "@/lib/google-auth";
 
-export default async function RegisterPage() {
-  if (await getCurrentUser()) redirect("/dashboard/jobs");
+const GOOGLE_ERRORS: Record<string, string> = {
+  google_not_configured: "Google sign-in is not configured yet. You can still register with email.",
+  google_cancelled: "Google sign-in was cancelled or expired. Please try again.",
+  google_failed: "Google could not sign you in. Please try again or use email.",
+};
+
+export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
+  const user = await getCurrentUser();
+  if (user) {
+    const profile = await getCandidateProfile(authenticatedSessionId(user));
+    if (profile.onboardingComplete) redirect("/dashboard/jobs");
+  }
+  const parameters = await searchParams;
+  const errorCode = typeof parameters.error === "string" ? parameters.error : "";
   return (
     <>
       <SiteHeader />
-      <RegistrationWizard />
+      <RegistrationWizard
+        googleEnabled={googleAuthConfigured()}
+        authenticatedUser={user ? { email: user.email } : null}
+        googleError={GOOGLE_ERRORS[errorCode] ?? null}
+      />
     </>
   );
 }

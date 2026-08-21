@@ -1,13 +1,21 @@
 export type YesNoAnswer = "" | "yes" | "no";
+export type GenderAnswer =
+  | ""
+  | "woman"
+  | "man"
+  | "non_binary"
+  | "self_describe"
+  | "prefer_not_to_say";
+export type VeteranAnswer =
+  | ""
+  | "not_veteran"
+  | "protected_veteran"
+  | "prefer_not_to_say";
+export type DisabilityAnswer = "" | "yes" | "no" | "prefer_not_to_say";
 
 export type ApplicationAnswers = {
-  expectedAnnualSalary: string;
-  expectedHourlyRate: string;
-  salaryCurrency: string;
-  preferredLocation: string;
-  authorizedWorkRegions: string;
+  workAuthorizationCountries: string[];
   needsSponsorship: YesNoAnswer;
-  willingToRelocate: YesNoAnswer;
   noticePeriod: string;
   yearsProductExperience: string;
   yearsAiExperience: string;
@@ -16,16 +24,15 @@ export type ApplicationAnswers = {
   aiProductionExperience: YesNoAnswer;
   typescriptExperience: YesNoAnswer;
   aiFrameworksExperience: YesNoAnswer;
+  gender: GenderAnswer;
+  raceEthnicities: string[];
+  veteranStatus: VeteranAnswer;
+  disabilityStatus: DisabilityAnswer;
 };
 
 export const EMPTY_APPLICATION_ANSWERS: ApplicationAnswers = {
-  expectedAnnualSalary: "",
-  expectedHourlyRate: "",
-  salaryCurrency: "",
-  preferredLocation: "",
-  authorizedWorkRegions: "",
+  workAuthorizationCountries: [],
   needsSponsorship: "",
-  willingToRelocate: "",
   noticePeriod: "",
   yearsProductExperience: "",
   yearsAiExperience: "",
@@ -34,6 +41,10 @@ export const EMPTY_APPLICATION_ANSWERS: ApplicationAnswers = {
   aiProductionExperience: "",
   typescriptExperience: "",
   aiFrameworksExperience: "",
+  gender: "",
+  raceEthnicities: [],
+  veteranStatus: "",
+  disabilityStatus: "",
 };
 
 export const APPLICATION_ANSWER_KEYS = Object.keys(
@@ -43,7 +54,9 @@ export const APPLICATION_ANSWER_KEYS = Object.keys(
 export const APPLICATION_ANSWER_TOTAL = APPLICATION_ANSWER_KEYS.length;
 
 export function countApplicationAnswers(answers: ApplicationAnswers): number {
-  return Object.values(answers).filter((value) => value.trim().length > 0).length;
+  return Object.values(answers).filter((value) =>
+    Array.isArray(value) ? value.length > 0 : value.trim().length > 0
+  ).length;
 }
 
 export type CandidateProfile = {
@@ -54,7 +67,9 @@ export type CandidateProfile = {
   location: string;
   linkedinUrl: string;
   portfolioUrl: string;
+  githubUrl: string;
   coverLetter: string;
+  skills: string[];
   resumeFileName: string | null;
   cvUploaded: boolean;
   resumeParsed: boolean;
@@ -81,7 +96,9 @@ export const EMPTY_CANDIDATE_PROFILE: CandidateProfile = {
   location: "",
   linkedinUrl: "",
   portfolioUrl: "",
+  githubUrl: "",
   coverLetter: "",
+  skills: [],
   resumeFileName: null,
   cvUploaded: false,
   resumeParsed: false,

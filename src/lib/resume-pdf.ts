@@ -188,7 +188,7 @@ function renderPdf(
     .filter(Boolean)
     .map((value) => fitLine(value, 180))
     .join("  |  ");
-  const linksLine = [profile.linkedinUrl, profile.portfolioUrl]
+  const linksLine = [profile.linkedinUrl, profile.portfolioUrl, profile.githubUrl]
     .filter(Boolean)
     .map((value) => fitLine(value, 300).replace(/^https?:\/\//i, ""))
     .join("  |  ");

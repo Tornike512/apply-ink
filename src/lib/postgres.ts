@@ -20,6 +20,7 @@ const SCHEMA = `
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
+    google_subject TEXT,
     session_version INTEGER NOT NULL DEFAULT 1,
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
@@ -27,6 +28,10 @@ const SCHEMA = `
 
   CREATE UNIQUE INDEX IF NOT EXISTS users_normalized_email_idx
   ON users (LOWER(email));
+  ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS google_subject TEXT;
+  CREATE UNIQUE INDEX IF NOT EXISTS users_google_subject_idx
+  ON users (google_subject) WHERE google_subject IS NOT NULL;
 
   CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id UUID PRIMARY KEY,
@@ -49,6 +54,7 @@ const SCHEMA = `
     location TEXT NOT NULL DEFAULT '',
     linkedin_url TEXT NOT NULL DEFAULT '',
     portfolio_url TEXT NOT NULL DEFAULT '',
+    github_url TEXT NOT NULL DEFAULT '',
     cover_letter TEXT NOT NULL DEFAULT '',
     resume_data BYTEA,
     resume_file_name TEXT,
@@ -66,6 +72,8 @@ const SCHEMA = `
 
   ALTER TABLE candidate_profiles
     ADD COLUMN IF NOT EXISTS application_answers JSONB NOT NULL DEFAULT '{}'::jsonb;
+  ALTER TABLE candidate_profiles
+    ADD COLUMN IF NOT EXISTS github_url TEXT NOT NULL DEFAULT '';
   ALTER TABLE candidate_profiles
     ADD COLUMN IF NOT EXISTS auto_submit_enabled BOOLEAN NOT NULL DEFAULT FALSE;
   ALTER TABLE candidate_profiles

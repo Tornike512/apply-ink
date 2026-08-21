@@ -14,7 +14,15 @@ async function errorMessage(response: Response, fallback: string): Promise<strin
   return data.error ?? fallback;
 }
 
-export function LoginForm({ nextPath = "/dashboard/jobs" }: { nextPath?: string }) {
+export function LoginForm({
+  nextPath = "/dashboard/jobs",
+  googleEnabled,
+  googleError = null,
+}: {
+  nextPath?: string;
+  googleEnabled: boolean;
+  googleError?: string | null;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +49,37 @@ export function LoginForm({ nextPath = "/dashboard/jobs" }: { nextPath?: string 
 
   return (
     <form onSubmit={submit} className="grid gap-4">
+      {googleError && <p role="alert" className="rounded-xl border border-sienna/25 bg-sienna/8 px-4 py-3 text-sm text-sienna">{googleError}</p>}
+      <a
+        href={`/api/auth/google?intent=login&next=${encodeURIComponent(nextPath)}`}
+        aria-disabled={!googleEnabled}
+        onClick={(event) => {
+          if (!googleEnabled) event.preventDefault();
+        }}
+        className={`flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-sand bg-surface px-5 py-3 text-sm font-bold text-espresso transition-colors ${
+          googleEnabled
+            ? "hover:border-terracotta hover:bg-cream/45"
+            : "cursor-not-allowed opacity-50"
+        }`}
+      >
+        <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+          <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.41Z" />
+          <path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.36l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.61 0-4.82-1.76-5.61-4.13H3.05v2.62A10 10 0 0 0 12 22Z" />
+          <path fill="#FBBC05" d="M6.39 13.93A6 6 0 0 1 6.08 12c0-.67.12-1.32.31-1.93V7.45H3.05A10 10 0 0 0 2 12c0 1.61.39 3.14 1.05 4.55l3.34-2.62Z" />
+          <path fill="#EA4335" d="M12 5.94c1.47 0 2.78.5 3.82 1.49l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.95 5.45l3.34 2.62C7.18 7.7 9.39 5.94 12 5.94Z" />
+        </svg>
+        Continue with Google
+      </a>
+      {!googleEnabled && (
+        <p className="-mt-2 text-xs text-sienna">
+          Google sign-in activates after its deployment keys are added.
+        </p>
+      )}
+      <div className="flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-sand" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-espresso/35">or use email</span>
+        <span className="h-px flex-1 bg-sand" />
+      </div>
       <label className="text-sm font-medium text-espresso">Email
         <input name="email" type="email" autoComplete="email" required className={inputClass} />
       </label>
@@ -130,12 +169,12 @@ export function ResetPasswordForm({ token }: { token: string }) {
   return (
     <form onSubmit={submit} className="grid gap-4">
       <label className="text-sm font-medium text-espresso">New password
-        <input name="password" type="password" autoComplete="new-password" minLength={10} required className={inputClass} />
+        <input name="password" type="password" autoComplete="new-password" minLength={8} required className={inputClass} />
       </label>
       <label className="text-sm font-medium text-espresso">Confirm password
-        <input name="confirmation" type="password" autoComplete="new-password" minLength={10} required className={inputClass} />
+        <input name="confirmation" type="password" autoComplete="new-password" minLength={8} required className={inputClass} />
       </label>
-      <p className="text-xs leading-5 text-espresso/50">Use at least 10 characters with a letter and a number.</p>
+      <p className="text-xs leading-5 text-espresso/50">Use at least 8 characters with a letter and a number.</p>
       {error && <p role="alert" className="text-sm text-sienna">{error}</p>}
       <button type="submit" disabled={pending || !token} className={buttonClass}>{pending ? "Saving password..." : "Save new password"}</button>
     </form>

@@ -38,6 +38,10 @@ function mergeResumePrefill(
   prefill: ResumePrefill
 ): StoredCandidateProfile {
   const answers = profile.applicationAnswers;
+  const mergedSkills = Array.from(new Set([...profile.skills, ...prefill.skills])).slice(
+    0,
+    50
+  );
   return {
     ...profile,
     firstName: profile.firstName || prefill.firstName,
@@ -47,6 +51,25 @@ function mergeResumePrefill(
     location: profile.location || prefill.location,
     linkedinUrl: profile.linkedinUrl || prefill.linkedinUrl,
     portfolioUrl: profile.portfolioUrl || prefill.portfolioUrl,
+    githubUrl: profile.githubUrl || prefill.githubUrl,
+    coverLetter: profile.coverLetter || prefill.coverLetter,
+    skills: mergedSkills,
+    skillsInventoryFileName: mergedSkills.length
+      ? profile.skillsInventoryFileName || "CV-detected skills"
+      : null,
+    skillsInventoryJson: mergedSkills.length
+      ? JSON.stringify({
+          skills: mergedSkills.map((name) => ({
+            name,
+            aliases: [],
+            categories: [],
+            claim_confidence: "confirmed",
+            experience_level: "unspecified",
+            resume_use: "skills_section",
+            evidence: [],
+          })),
+        })
+      : null,
     applicationAnswers: {
       ...answers,
       yearsProductExperience:

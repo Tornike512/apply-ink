@@ -177,15 +177,26 @@ async function applyThroughWorkable(
           phone: profile.phone || undefined,
           address: profile.location || undefined,
           cover_letter: profile.coverLetter || undefined,
-          social_profiles: profile.linkedinUrl
-            ? [
-                {
+          social_profiles:
+            profile.linkedinUrl || profile.githubUrl || profile.portfolioUrl
+              ? [
+                ...(profile.linkedinUrl ? [{
                   type: "linkedin",
                   name: "LinkedIn",
                   url: profile.linkedinUrl,
-                },
+                }] : []),
+                ...(profile.githubUrl ? [{
+                  type: "github",
+                  name: "GitHub",
+                  url: profile.githubUrl,
+                }] : []),
+                ...(profile.portfolioUrl ? [{
+                  type: "website",
+                  name: "Portfolio",
+                  url: profile.portfolioUrl,
+                }] : []),
               ]
-            : undefined,
+              : undefined,
           resume:
             resume && profile.resumeFileName
               ? {

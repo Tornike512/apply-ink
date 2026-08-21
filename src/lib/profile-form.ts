@@ -3,7 +3,10 @@ import "server-only";
 import path from "node:path";
 import type {
   ApplicationAnswers,
+  DisabilityAnswer,
+  GenderAnswer,
   YesNoAnswer,
+  VeteranAnswer,
 } from "@/lib/candidate-profile";
 import type { StoredCandidateProfile } from "@/lib/application-store";
 import {
@@ -11,6 +14,7 @@ import {
   parseSkillsInventory,
   RESUME_EXTENSIONS,
 } from "@/lib/resume-parser";
+import { defaultIntroductionFromSkills } from "@/lib/resume-prefill";
 
 const MAX_RESUME_BYTES = 10 * 1024 * 1024;
 const MAX_INVENTORY_BYTES = 10 * 1024 * 1024;
@@ -36,7 +40,9 @@ export function publicCandidateProfile(profile: StoredCandidateProfile) {
     location: profile.location,
     linkedinUrl: profile.linkedinUrl,
     portfolioUrl: profile.portfolioUrl,
+    githubUrl: profile.githubUrl,
     coverLetter: profile.coverLetter,
+    skills: profile.skills,
     resumeFileName: profile.resumeFileName,
     cvUploaded: profile.cvUploaded,
     resumeParsed: profile.resumeParsed,
@@ -80,6 +86,40 @@ function yesNoField(
   return value === "yes" || value === "no" ? value : "";
 }
 
+function stringListField(
+  formData: FormData,
+  name: keyof ApplicationAnswers,
+  current: string[],
+  maxItems: number,
+  maxLength: number
+): string[] {
+  if (!formData.has(name)) return current;
+  const raw = field(formData, name, 10_000);
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim().slice(0, maxLength))
+      .filter(Boolean)
+      .filter((item, index, all) => all.indexOf(item) === index)
+      .slice(0, maxItems);
+  } catch {
+    return [];
+  }
+}
+
+function choiceField<T extends string>(
+  formData: FormData,
+  name: keyof ApplicationAnswers,
+  current: T,
+  choices: readonly T[]
+): T {
+  if (!formData.has(name)) return current;
+  const value = field(formData, name, 50) as T;
+  return choices.includes(value) ? value : ("" as T);
+}
+
 function yearsField(
   formData: FormData,
   name: "yearsProductExperience" | "yearsAiExperience",
@@ -96,50 +136,18 @@ function applicationAnswersFromForm(
   formData: FormData,
   current: ApplicationAnswers
 ): ApplicationAnswers {
-  const currency = fieldOrCurrent(
-    formData,
-    "salaryCurrency",
-    10,
-    current.salaryCurrency
-  ).toUpperCase();
-  if (currency && !/^[A-Z]{3}$/.test(currency)) {
-    throw new ResumeUploadError("Salary currency must be a 3-letter code.");
-  }
   return {
-    expectedAnnualSalary: fieldOrCurrent(
+    workAuthorizationCountries: stringListField(
       formData,
-      "expectedAnnualSalary",
-      30,
-      current.expectedAnnualSalary
-    ),
-    expectedHourlyRate: fieldOrCurrent(
-      formData,
-      "expectedHourlyRate",
-      30,
-      current.expectedHourlyRate
-    ),
-    salaryCurrency: currency,
-    preferredLocation: fieldOrCurrent(
-      formData,
-      "preferredLocation",
-      150,
-      current.preferredLocation
-    ),
-    authorizedWorkRegions: fieldOrCurrent(
-      formData,
-      "authorizedWorkRegions",
-      500,
-      current.authorizedWorkRegions
+      "workAuthorizationCountries",
+      current.workAuthorizationCountries,
+      50,
+      2
     ),
     needsSponsorship: yesNoField(
       formData,
       "needsSponsorship",
       current.needsSponsorship
-    ),
-    willingToRelocate: yesNoField(
-      formData,
-      "willingToRelocate",
-      current.willingToRelocate
     ),
     noticePeriod: fieldOrCurrent(
       formData,
@@ -182,6 +190,105 @@ function applicationAnswersFromForm(
       "aiFrameworksExperience",
       current.aiFrameworksExperience
     ),
+    gender: choiceField<GenderAnswer>(
+      formData,
+      "gender",
+      current.gender,
+      ["", "woman", "man", "non_binary", "self_describe", "prefer_not_to_say"]
+    ),
+    raceEthnicities: stringListField(
+      formData,
+      "raceEthnicities",
+      current.raceEthnicities,
+      12,
+      50
+    ),
+    veteranStatus: choiceField<VeteranAnswer>(
+      formData,
+      "veteranStatus",
+      current.veteranStatus,
+      ["", "not_veteran", "protected_veteran", "prefer_not_to_say"]
+    ),
+    disabilityStatus: choiceField<DisabilityAnswer>(
+      formData,
+      "disabilityStatus",
+      current.disabilityStatus,
+      ["", "yes", "no", "prefer_not_to_say"]
+    ),
+  };
+}
+
+function normalizedUrl(
+  formData: FormData,
+  name: string,
+  label: string,
+  requiredHost?: RegExp
+): string {
+  const raw = field(formData, name, 500);
+  if (!raw) return "";
+  const withProtocol = /^[a-z][a-z\d+.-]*:\/\//i.test(raw)
+    ? raw
+    : `https://${raw}`;
+  try {
+    const url = new URL(withProtocol);
+    if (!/^https?:$/.test(url.protocol) || (requiredHost && !requiredHost.test(url.hostname))) {
+      throw new Error("invalid");
+    }
+    return url.toString().slice(0, 500);
+  } catch {
+    throw new ResumeUploadError(`Enter a valid ${label} URL.`);
+  }
+}
+
+function skillsFromForm(
+  formData: FormData,
+  current: StoredCandidateProfile
+): Pick<
+  StoredCandidateProfile,
+  "skills" | "skillsInventoryFileName" | "skillsInventoryJson"
+> {
+  if (!formData.has("skills")) {
+    return {
+      skills: current.skills,
+      skillsInventoryFileName: current.skillsInventoryFileName,
+      skillsInventoryJson: current.skillsInventoryJson,
+    };
+  }
+  const raw = field(formData, "skills", 10_000);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = [];
+  }
+  const skills = Array.isArray(parsed)
+    ? parsed
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim().slice(0, 80))
+        .filter(Boolean)
+        .filter(
+          (item, index, all) =>
+            all.findIndex((candidate) => candidate.toLowerCase() === item.toLowerCase()) ===
+            index
+        )
+        .slice(0, 50)
+    : [];
+  return {
+    skills,
+    skillsInventoryFileName: skills.length ? "Profile skills" : null,
+    skillsInventoryJson: skills.length
+      ? JSON.stringify({
+          skills: skills.map((name) => ({
+            name,
+            aliases: [],
+            categories: [],
+            claim_confidence: "confirmed",
+            experience_level: "unspecified",
+            resume_use: "skills_section",
+            evidence: [],
+          })),
+        })
+      : null,
   };
 }
 
@@ -249,6 +356,7 @@ export async function candidateProfileFromForm(
   formData: FormData,
   current: StoredCandidateProfile
 ): Promise<StoredCandidateProfile> {
+  const skills = skillsFromForm(formData, current);
   const next: StoredCandidateProfile = {
     ...current,
     firstName: field(formData, "firstName", 100),
@@ -256,9 +364,21 @@ export async function candidateProfileFromForm(
     email: field(formData, "email", 254),
     phone: field(formData, "phone", 50),
     location: field(formData, "location", 150),
-    linkedinUrl: field(formData, "linkedinUrl", 500),
-    portfolioUrl: field(formData, "portfolioUrl", 500),
+    linkedinUrl: normalizedUrl(
+      formData,
+      "linkedinUrl",
+      "LinkedIn",
+      /(?:^|\.)linkedin\.com$/i
+    ),
+    portfolioUrl: normalizedUrl(formData, "portfolioUrl", "portfolio"),
+    githubUrl: normalizedUrl(
+      formData,
+      "githubUrl",
+      "GitHub",
+      /(?:^|\.)github\.com$/i
+    ),
     coverLetter: field(formData, "coverLetter", 8_000),
+    ...skills,
     applicationAnswers: applicationAnswersFromForm(
       formData,
       current.applicationAnswers
@@ -283,6 +403,10 @@ export async function candidateProfileFromForm(
   const resume = formData.get("resume");
   if (resume instanceof File && resume.size > 0) {
     Object.assign(next, await resumeFieldsFromFile(resume));
+  }
+
+  if (!next.coverLetter && next.resumeText.trim()) {
+    next.coverLetter = defaultIntroductionFromSkills(next.skills);
   }
 
   const skillsInventory = formData.get("skillsInventory");

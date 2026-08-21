@@ -12,7 +12,10 @@ import {
   countApplicationAnswers,
   type ApplicationAnswers,
   type CandidateProfile,
+  type DisabilityAnswer,
+  type GenderAnswer,
   type YesNoAnswer,
+  type VeteranAnswer,
 } from "@/lib/candidate-profile";
 import type { Job } from "@/lib/jobs";
 import { postgresQuery, postgresTransaction } from "@/lib/postgres";
@@ -38,6 +41,7 @@ type ProfileRow = {
   location: string;
   linkedin_url: string;
   portfolio_url: string;
+  github_url: string;
   cover_letter: string;
   resume_data: Buffer | null;
   resume_file_name: string | null;
@@ -108,8 +112,63 @@ function countInventorySkills(value: unknown | null): number {
   }
 }
 
+function inventorySkills(value: unknown | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    const skills = (parsed as { skills?: unknown }).skills;
+    if (!Array.isArray(skills)) return [];
+    return skills
+      .map((skill) =>
+        skill && typeof skill === "object" && typeof skill.name === "string"
+          ? skill.name.trim()
+          : ""
+      )
+      .filter(Boolean)
+      .slice(0, 50);
+  } catch {
+    return [];
+  }
+}
+
 function yesNoAnswer(value: unknown): YesNoAnswer {
   return value === "yes" || value === "no" ? value : "";
+}
+
+function stringList(value: unknown, maxItems: number, maxLength: number): string[] {
+  return Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim().slice(0, maxLength))
+        .filter(Boolean)
+        .slice(0, maxItems)
+    : [];
+}
+
+function genderAnswer(value: unknown): GenderAnswer {
+  return value === "woman" ||
+    value === "man" ||
+    value === "non_binary" ||
+    value === "self_describe" ||
+    value === "prefer_not_to_say"
+    ? value
+    : "";
+}
+
+function veteranAnswer(value: unknown): VeteranAnswer {
+  return value === "not_veteran" ||
+    value === "protected_veteran" ||
+    value === "prefer_not_to_say"
+    ? value
+    : "";
+}
+
+function disabilityAnswer(value: unknown): DisabilityAnswer {
+  return value === "yes" ||
+    value === "no" ||
+    value === "prefer_not_to_say"
+    ? value
+    : "";
 }
 
 function applicationAnswers(value: unknown | null): ApplicationAnswers {
@@ -131,13 +190,12 @@ function applicationAnswers(value: unknown | null): ApplicationAnswers {
       : "";
   return {
     ...EMPTY_APPLICATION_ANSWERS,
-    expectedAnnualSalary: text("expectedAnnualSalary", 30),
-    expectedHourlyRate: text("expectedHourlyRate", 30),
-    salaryCurrency: text("salaryCurrency", 10),
-    preferredLocation: text("preferredLocation", 150),
-    authorizedWorkRegions: text("authorizedWorkRegions", 500),
+    workAuthorizationCountries: stringList(
+      source.workAuthorizationCountries,
+      50,
+      2
+    ),
     needsSponsorship: yesNoAnswer(source.needsSponsorship),
-    willingToRelocate: yesNoAnswer(source.willingToRelocate),
     noticePeriod: text("noticePeriod", 100),
     yearsProductExperience: text("yearsProductExperience", 3),
     yearsAiExperience: text("yearsAiExperience", 3),
@@ -146,6 +204,10 @@ function applicationAnswers(value: unknown | null): ApplicationAnswers {
     aiProductionExperience: yesNoAnswer(source.aiProductionExperience),
     typescriptExperience: yesNoAnswer(source.typescriptExperience),
     aiFrameworksExperience: yesNoAnswer(source.aiFrameworksExperience),
+    gender: genderAnswer(source.gender),
+    raceEthnicities: stringList(source.raceEthnicities, 12, 50),
+    veteranStatus: veteranAnswer(source.veteranStatus),
+    disabilityStatus: disabilityAnswer(source.disabilityStatus),
   };
 }
 
@@ -162,7 +224,9 @@ function mapProfile(row: ProfileRow): StoredCandidateProfile {
     location: row.location,
     linkedinUrl: row.linkedin_url,
     portfolioUrl: row.portfolio_url,
+    githubUrl: row.github_url,
     coverLetter: row.cover_letter,
+    skills: inventorySkills(row.skills_inventory_json),
     resumeFileName: row.resume_file_name,
     cvUploaded,
     resumeParsed: Boolean(row.resume_text.trim()),
@@ -220,22 +284,23 @@ export async function saveCandidateProfile(
       location = $6,
       linkedin_url = $7,
       portfolio_url = $8,
-      cover_letter = $9,
-      resume_data = $10,
-      resume_file_name = $11,
-      resume_mime_type = $12,
-      resume_text = $13,
-      skills_inventory_file_name = $14,
-      skills_inventory_json = $15::jsonb,
-      application_answers = $16::jsonb,
-      auto_submit_enabled = $17,
-      privacy_consent_allowed = $18,
-      talent_pool_opt_in = $19,
+      github_url = $9,
+      cover_letter = $10,
+      resume_data = $11,
+      resume_file_name = $12,
+      resume_mime_type = $13,
+      resume_text = $14,
+      skills_inventory_file_name = $15,
+      skills_inventory_json = $16::jsonb,
+      application_answers = $17::jsonb,
+      auto_submit_enabled = $18,
+      privacy_consent_allowed = $19,
+      talent_pool_opt_in = $20,
       onboarding_completed_at = CASE
-        WHEN $20::boolean THEN COALESCE(onboarding_completed_at, $21)
+        WHEN $21::boolean THEN COALESCE(onboarding_completed_at, $22)
         ELSE onboarding_completed_at
       END,
-      updated_at = $21
+      updated_at = $22
     WHERE session_id = $1`,
     [
       sessionId,
@@ -246,6 +311,7 @@ export async function saveCandidateProfile(
       profile.location,
       profile.linkedinUrl,
       profile.portfolioUrl,
+      profile.githubUrl,
       profile.coverLetter,
       profile.resumeData,
       profile.resumeFileName,
