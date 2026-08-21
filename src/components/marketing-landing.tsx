@@ -389,9 +389,17 @@ export function MarketingLanding() {
           </Link>
         </section>
 
-        <footer className="flex flex-col gap-2 border-t border-sand/70 py-7 text-xs text-espresso/45 sm:flex-row sm:items-center sm:justify-between">
+        <footer className="flex flex-col gap-4 border-t border-sand/70 py-7 text-xs text-espresso/45 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-semibold text-espresso/60">apply.ink</p>
           <p>Global remote applications, with you in control.</p>
+          <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link href="/privacy" className="transition-colors hover:text-sienna">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-sienna">
+              Terms of Service
+            </Link>
+          </nav>
         </footer>
       </div>
     </main>

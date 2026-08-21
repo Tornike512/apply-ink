@@ -163,6 +163,7 @@ async function main() {
     ["Job sending tests", () => runNpmScript("job-sending:test")],
     ["Production build", () => runNpmScript("build")],
     ["Temporary application server", () => startApplication()],
+    ["Public legal page tests", () => runNpmScript("public-pages:test")],
     ["Authentication API tests", () => runNpmScript("auth:api-test")],
     ["Registration and browser tests", () => runNpmScript("auth:registration-test")],
   ];
