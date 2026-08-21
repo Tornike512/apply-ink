@@ -1,0 +1,98 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint, build, and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: apply_ink_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/apply_ink_ci
+      DATABASE_POOL_MAX: 5
+      AUTH_SECRET: apply-ink-ci-only-signing-secret-32-characters
+      APPLY_INK_TEST_ORIGIN: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: 1
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run static checks
+        run: |
+          npm run lint
+          npx tsc --noEmit
+
+      - name: Run focused regression tests
+        run: |
+          npm run resume-prefill:test
+          npm run job-identity:test
+          npm run job-filtering:test
+
+      - name: Prepare test database
+        run: |
+          npm run db:check
+          psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --command "INSERT INTO job_store (id, jobs, sources, refreshed_at) VALUES (1, '[]'::jsonb, '{}'::jsonb, 0) ON CONFLICT (id) DO NOTHING;"
+
+      - name: Run database and authentication tests
+        run: |
+          npm run db:test
+          npm run auth:test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Start application
+        run: |
+          npm start > /tmp/apply-ink-next.log 2>&1 &
+          echo $! > /tmp/apply-ink-next.pid
+
+      - name: Wait for application
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3000/login > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/apply-ink-next.log
+          exit 1
+
+      - name: Run API and browser tests
+        run: |
+          npm run auth:api-test
+          npm run auth:registration-test
