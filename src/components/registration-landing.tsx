@@ -6,6 +6,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApplicationQuestionFields } from "@/components/application-question-fields";
 import { Button } from "@/components/button";
+import { CountryPhoneInput } from "@/components/country-phone-input";
 import { Spinner } from "@/components/spinner";
 import {
   CANDIDATE_PROFILE_KEY,
@@ -23,11 +24,11 @@ const inputClass =
 const STEPS = [
   {
     title: "Account",
-    description: "Your name, email, and secure password",
+    description: "Your email and secure password",
   },
   {
     title: "Resume",
-    description: "Contact details and your master CV",
+    description: "Upload your CV and review filled details",
   },
   {
     title: "Preferences",
@@ -65,6 +66,8 @@ export function RegistrationWizard() {
   const profileQuery = useCandidateProfile();
   const profile = profileQuery.data ?? EMPTY_CANDIDATE_PROFILE;
   const formRef = useRef<HTMLFormElement>(null);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
+  const resumeUploadButtonRef = useRef<HTMLButtonElement>(null);
   const prefillRequestRef = useRef(0);
   const [step, setStep] = useState(0);
   const [furthestStep, setFurthestStep] = useState(0);
@@ -73,6 +76,11 @@ export function RegistrationWizard() {
   const [resumeReadError, setResumeReadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [answerCount, setAnswerCount] = useState<number | null>(null);
+  const [editedPhone, setEditedPhone] = useState<string | null>(null);
+  const [selectedResumeName, setSelectedResumeName] = useState<string | null>(
+    null
+  );
+  const phone = editedPhone ?? profile.phone;
   const visibleAnswerCount = answerCount ?? profile.applicationAnswerCount;
   const coverage = Math.round(
     (visibleAnswerCount / profile.applicationAnswerTotal) * 100
@@ -98,6 +106,16 @@ export function RegistrationWizard() {
       `[data-registration-step="${step}"]`
     );
     if (!container) return false;
+
+    if (
+      step === 1 &&
+      !profile.resumeFileName &&
+      !resumeInputRef.current?.files?.length
+    ) {
+      setMessage("Upload your CV so we can fill the supported fields.");
+      resumeUploadButtonRef.current?.focus();
+      return false;
+    }
 
     const fields = container.querySelectorAll<ValidatableField>(
       "input, select, textarea"
@@ -145,6 +163,13 @@ export function RegistrationWizard() {
 
       let appliedCount = 0;
       for (const [name, value] of Object.entries(data.answers)) {
+        if (name === "phone") {
+          if (!phone.trim() && value.trim()) {
+            setEditedPhone(value);
+            appliedCount += 1;
+          }
+          continue;
+        }
         const field = form.elements.namedItem(name);
         if (
           !(field instanceof HTMLInputElement) &&
@@ -293,8 +318,11 @@ export function RegistrationWizard() {
             <p className="text-sm text-sienna">{profileQuery.error.message}</p>
           </div>
         ) : (
-          <div className="grid items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
-            <aside className="rounded-3xl border border-sand bg-surface/75 p-3 backdrop-blur lg:sticky lg:top-24 lg:p-4">
+          <div className="grid items-stretch gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+            <aside
+              data-registration-steps
+              className="h-full rounded-3xl border border-sand bg-surface/75 p-3 backdrop-blur lg:p-4"
+            >
               <p className="px-2 pb-3 text-xs font-bold uppercase tracking-[0.14em] text-sienna lg:px-3">
                 Step {step + 1} of {STEPS.length}
               </p>
@@ -359,9 +387,10 @@ export function RegistrationWizard() {
               onChange={(event) =>
                 setAnswerCount(countFormAnswers(event.currentTarget))
               }
-              className="rounded-3xl border border-sand bg-surface/90 shadow-[0_24px_80px_rgba(78,47,36,0.08)]"
+              data-registration-form
+              className="flex h-full min-h-[30rem] flex-col rounded-3xl border border-sand bg-surface/90 shadow-[0_24px_80px_rgba(78,47,36,0.08)]"
             >
-              <div className="p-6 sm:p-8 lg:p-10">
+              <div className="flex-1 p-6 sm:p-8 lg:p-10">
                 <div className="mb-7">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-terracotta">
                     Step {step + 1}
@@ -376,14 +405,6 @@ export function RegistrationWizard() {
 
                 <section data-registration-step="0" hidden={step !== 0}>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="text-sm font-medium text-espresso">
-                      First name
-                      <input name="firstName" autoComplete="given-name" required defaultValue={profile.firstName} className={inputClass} />
-                    </label>
-                    <label className="text-sm font-medium text-espresso">
-                      Last name
-                      <input name="lastName" autoComplete="family-name" required defaultValue={profile.lastName} className={inputClass} />
-                    </label>
                     <label className="text-sm font-medium text-espresso sm:col-span-2">
                       Email
                       <input name="email" type="email" autoComplete="email" required defaultValue={profile.email} className={inputClass} />
@@ -403,16 +424,78 @@ export function RegistrationWizard() {
                 </section>
 
                 <section data-registration-step="1" hidden={step !== 1}>
-                  <p className="mb-5 text-sm leading-6 text-espresso/60">
-                    Upload your CV first. Apply Ink fills contact and experience
-                    answers only when the document supports them; review every
-                    answer before continuing.
-                  </p>
+                  <div className="mb-6 rounded-2xl border border-sand bg-cream/55 p-5">
+                    <p className="text-base font-bold text-espresso">
+                      Fill the form from your resume
+                    </p>
+                    <p className="mt-1.5 text-sm leading-6 text-espresso/60">
+                      Upload your CV and Apply Ink will fill supported contact
+                      details and common experience answers. You can review and
+                      edit every field before creating your account.
+                    </p>
+                    <input
+                      ref={resumeInputRef}
+                      name="resume"
+                      type="file"
+                      accept=".pdf,.doc,.docx,.rtf,.odt,.txt"
+                      aria-label="Upload CV to fill the form"
+                      onChange={(event) => {
+                        const resume = event.currentTarget.files?.[0];
+                        if (resume) {
+                          setSelectedResumeName(resume.name);
+                          void prefillFromResume(resume);
+                        }
+                      }}
+                      className="sr-only"
+                    />
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <button
+                        ref={resumeUploadButtonRef}
+                        type="button"
+                        onClick={() => resumeInputRef.current?.click()}
+                        disabled={prefilling}
+                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-sienna px-5 py-2.5 text-sm font-bold text-cream transition-colors hover:bg-espresso disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {prefilling
+                          ? "Reading your CV..."
+                          : profile.resumeFileName
+                            ? "Replace CV and refill form"
+                            : "Upload CV and fill my form"}
+                      </button>
+                      <span className="text-xs leading-5 text-espresso/55">
+                        {selectedResumeName ??
+                          profile.resumeFileName ??
+                          "PDF, DOC, DOCX, RTF, ODT, or TXT; maximum 10 MB"}
+                      </span>
+                    </div>
+                    {profile.resumeFileName && !selectedResumeName && (
+                      <button
+                        type="button"
+                        onClick={() => void prefillFromResume()}
+                        disabled={prefilling}
+                        className="mt-3 text-xs font-semibold text-sienna underline underline-offset-2 disabled:opacity-50"
+                      >
+                        Fill remaining fields from my saved CV
+                      </button>
+                    )}
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="text-sm font-medium text-espresso">
-                      Phone
-                      <input name="phone" type="tel" autoComplete="tel" required defaultValue={profile.phone} className={inputClass} />
+                      First name
+                      <input name="firstName" autoComplete="given-name" required defaultValue={profile.firstName} className={inputClass} />
                     </label>
+                    <label className="text-sm font-medium text-espresso">
+                      Last name
+                      <input name="lastName" autoComplete="family-name" required defaultValue={profile.lastName} className={inputClass} />
+                    </label>
+                    <div className="text-sm font-medium text-espresso sm:col-span-2">
+                      Phone
+                      <CountryPhoneInput
+                        value={phone}
+                        onChange={setEditedPhone}
+                        required
+                      />
+                    </div>
                     <label className="text-sm font-medium text-espresso">
                       Current location
                       <input name="location" autoComplete="address-level2" required placeholder="Tbilisi, Georgia" defaultValue={profile.location} className={inputClass} />
@@ -424,35 +507,6 @@ export function RegistrationWizard() {
                     <label className="text-sm font-medium text-espresso">
                       Portfolio URL
                       <input name="portfolioUrl" type="url" defaultValue={profile.portfolioUrl} className={inputClass} />
-                    </label>
-                    <label className="text-sm font-medium text-espresso sm:col-span-2">
-                      Resume
-                      <input
-                        name="resume"
-                        type="file"
-                        accept=".pdf,.doc,.docx,.rtf,.odt,.txt"
-                        required={!profile.resumeFileName}
-                        onChange={(event) => {
-                          const resume = event.currentTarget.files?.[0];
-                          if (resume) void prefillFromResume(resume);
-                        }}
-                        className={`${inputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-sand/55 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-espresso`}
-                      />
-                      <span className="mt-1.5 block text-xs font-normal text-espresso/50">
-                        {profile.resumeFileName
-                          ? `${profile.resumeFileName} is already uploaded. Choose a file only to replace it.`
-                          : "PDF, DOC, DOCX, RTF, ODT, or TXT; maximum 10 MB"}
-                      </span>
-                      {profile.resumeFileName && (
-                        <button
-                          type="button"
-                          onClick={() => void prefillFromResume()}
-                          disabled={prefilling}
-                          className="mt-2 text-xs font-semibold text-sienna underline underline-offset-2 disabled:opacity-50"
-                        >
-                          Fill remaining answers from saved CV
-                        </button>
-                      )}
                     </label>
                     <label className="text-sm font-medium text-espresso sm:col-span-2">
                       Default introduction or cover note

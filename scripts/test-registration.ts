@@ -83,8 +83,6 @@ async function main() {
     if (formTop < 70 || formTop > 140) {
       throw new Error("Header Register link did not scroll to the form.");
     }
-    await page.locator('input[name="firstName"]').fill("Registration");
-    await page.locator('input[name="lastName"]').fill("Test");
     await page.locator('input[name="email"]').fill(email);
     await page.locator('input[name="password"]').fill(`Account-${suffix}-6`);
     await page
@@ -92,8 +90,26 @@ async function main() {
       .fill(`Account-${suffix}-6`);
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Resume", exact: true }).waitFor();
-    await page.locator('input[name="phone"]').fill("+1 555 0100");
-    await page.locator('input[name="location"]').fill("Remote");
+    await page.getByText("Fill the form from your resume", { exact: true }).waitFor();
+    await page
+      .getByRole("button", {
+        name: /^(?:Upload CV and fill my form|Replace CV and refill form)$/,
+      })
+      .waitFor();
+    await page.locator('input[name="firstName"]').fill("");
+    await page.locator('input[name="lastName"]').fill("");
+    await page.getByRole("textbox", { name: "Phone number" }).fill("");
+    await page.locator('input[name="location"]').fill("");
+    await page.locator('input[name="linkedinUrl"]').fill("");
+    await page.getByRole("combobox", { name: "Phone country" }).click();
+    await page
+      .getByRole("listbox", { name: "Phone country" })
+      .getByRole("option", { name: /Georgia \(\+995\)/ })
+      .waitFor();
+    await page.keyboard.press("Escape");
+    await page
+      .getByRole("listbox", { name: "Phone country" })
+      .waitFor({ state: "detached" });
     await page.locator('input[name="resume"]').setInputFiles({
       name: "invalid-resume.txt",
       mimeType: "text/plain",
@@ -117,10 +133,23 @@ async function main() {
         body: JSON.stringify({
           source: "ai",
           answers: {
+            firstName: "Registration",
+            lastName: "Test",
+            phone: "+995555010100",
+            location: "Tbilisi, Georgia",
+            linkedinUrl: "https://www.linkedin.com/in/registration-test",
             aiProductionExperience: "yes",
             typescriptExperience: "yes",
           },
-          filledFields: ["aiProductionExperience", "typescriptExperience"],
+          filledFields: [
+            "firstName",
+            "lastName",
+            "phone",
+            "location",
+            "linkedinUrl",
+            "aiProductionExperience",
+            "typescriptExperience",
+          ],
         }),
       });
     });
@@ -131,7 +160,41 @@ async function main() {
         "Registration Test\nProduct engineer with TypeScript, React, Node.js, PostgreSQL, and production AI experience. Built and shipped reliable remote software products."
       ),
     });
-    await page.getByText("2 answers filled from your CV", { exact: false }).waitFor();
+    await page.getByText("answers filled from your CV", { exact: false }).waitFor();
+    if (
+      (await page.locator('input[name="firstName"]').inputValue()) !==
+        "Registration" ||
+      (await page.locator('input[name="lastName"]').inputValue()) !== "Test" ||
+      (await page.locator('input[name="phone"]').inputValue()) !==
+        "+995555010100" ||
+      (await page.locator('input[name="location"]').inputValue()) !==
+        "Tbilisi, Georgia" ||
+      !(await page
+        .getByRole("combobox", { name: "Phone country" })
+        .textContent())?.includes("Georgia")
+    ) {
+      throw new Error("CV contact details did not fill the step-two form.");
+    }
+    const registrationCardHeights = await page.evaluate(() => {
+      const steps = document.querySelector<HTMLElement>(
+        "[data-registration-steps]"
+      );
+      const form = document.querySelector<HTMLElement>(
+        "[data-registration-form]"
+      );
+      return steps && form
+        ? {
+            steps: steps.getBoundingClientRect().height,
+            form: form.getBoundingClientRect().height,
+          }
+        : null;
+    });
+    if (
+      !registrationCardHeights ||
+      Math.abs(registrationCardHeights.steps - registrationCardHeights.form) > 1
+    ) {
+      throw new Error("Registration form and step cards are not equal height.");
+    }
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Preferences", exact: true }).waitFor();
     const sponsorshipQuestion = "Do you need visa sponsorship?";
@@ -399,6 +462,10 @@ async function main() {
       JSON.stringify({
         registrationForm: true,
         stepByStepQuestions: true,
+        resumeIsSecondStep: true,
+        resumeFirstPrefill: true,
+        countryPhoneInput: true,
+        equalRegistrationCards: true,
         headerRegisterAnchor: true,
         validatesBeforeAccountCreation: true,
         resumeUpload: true,
