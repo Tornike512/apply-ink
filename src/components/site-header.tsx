@@ -38,7 +38,7 @@ export async function SiteHeader() {
                 href="/register#register"
                 className="whitespace-nowrap rounded-xl bg-sienna px-3 py-2 text-sm font-bold text-cream transition-colors hover:bg-espresso sm:px-4"
               >
-                Register
+                Upload resume
               </Link>
             </>
           )}

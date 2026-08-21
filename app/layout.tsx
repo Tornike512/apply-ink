@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Apply Ink — AI job applications on autopilot",
+  title: "Apply Ink — One-click applications for global remote jobs",
   description:
-    "Upload your resume once, answer common employer questions, and let AI route matching remote-job applications.",
+    "Upload your resume, find global remote jobs that match your skills, and start many applications with one click.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

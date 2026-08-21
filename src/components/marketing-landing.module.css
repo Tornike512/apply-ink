@@ -1,0 +1,289 @@
+.heroDemo {
+  animation: demoEnter 700ms 120ms ease-out both;
+}
+
+.applyButton::after {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid rgba(154, 114, 101, 0.5);
+  border-radius: inherit;
+  content: "";
+  animation: clickRing 5.6s ease-out infinite;
+}
+
+.demoCursor {
+  position: absolute;
+  z-index: 20;
+  top: 54%;
+  left: 62%;
+  filter: drop-shadow(0 5px 6px rgba(42, 23, 19, 0.18));
+  animation: cursorClick 5.6s ease-in-out infinite;
+}
+
+.workflowLine {
+  width: 75%;
+  transform-origin: center;
+  animation: lineSpread 5.6s ease-in-out infinite;
+}
+
+.companyCard {
+  opacity: 0.58;
+  transform: translateY(8px);
+  animation: companyApply 5.6s ease-in-out infinite;
+}
+
+.companyCard:nth-child(2) {
+  animation-delay: 0.32s;
+}
+
+.companyCard:nth-child(3) {
+  animation-delay: 0.64s;
+}
+
+.companyCard .statusBadge {
+  color: rgba(42, 23, 19, 0.5);
+  background: rgba(231, 197, 178, 0.3);
+  animation: statusComplete 5.6s ease-in-out infinite;
+}
+
+.companyCard:nth-child(2) .statusBadge {
+  animation-delay: 0.32s;
+}
+
+.companyCard:nth-child(3) .statusBadge {
+  animation-delay: 0.64s;
+}
+
+.floatingNote {
+  animation: noteFloat 4s ease-in-out infinite;
+}
+
+.runList::before {
+  position: absolute;
+  top: 1rem;
+  bottom: 1rem;
+  left: 0.968rem;
+  width: 2px;
+  background: rgba(255, 252, 249, 0.1);
+  content: "";
+}
+
+.runList::after {
+  position: absolute;
+  top: 1rem;
+  left: 0.968rem;
+  width: 2px;
+  height: calc(100% - 2rem);
+  background: #3e9b4f;
+  content: "";
+  transform: scaleY(0);
+  transform-origin: top;
+  animation: progressLine 6s ease-in-out infinite;
+}
+
+.runItem {
+  opacity: 0.35;
+  animation: runStep 6s ease-in-out infinite;
+}
+
+.runItem:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.runItem:nth-child(3) {
+  animation-delay: 1s;
+}
+
+.runItem:nth-child(4) {
+  animation-delay: 1.5s;
+}
+
+.runCheck {
+  transform: scale(0.92);
+  animation: runCheck 6s ease-in-out infinite;
+}
+
+.runItem:nth-child(2) .runCheck {
+  animation-delay: 0.5s;
+}
+
+.runItem:nth-child(3) .runCheck {
+  animation-delay: 1s;
+}
+
+.runItem:nth-child(4) .runCheck {
+  animation-delay: 1.5s;
+}
+
+@keyframes demoEnter {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cursorClick {
+  0%, 9% {
+    opacity: 0;
+    transform: translate(34px, 28px);
+  }
+  18%, 29% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+  23% {
+    transform: translate(2px, 3px) scale(0.9);
+  }
+  38%, 100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes clickRing {
+  0%, 20% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  23% {
+    opacity: 0.8;
+  }
+  34%, 100% {
+    opacity: 0;
+    transform: scale(1.22);
+  }
+}
+
+@keyframes lineSpread {
+  0%, 22% {
+    opacity: 0;
+    transform: scaleX(0.12);
+  }
+  42%, 82% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes companyApply {
+  0%, 25% {
+    opacity: 0.58;
+    transform: translateY(8px);
+  }
+  39%, 84% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0.58;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes statusComplete {
+  0%, 32% {
+    color: rgba(42, 23, 19, 0.5);
+    background: rgba(231, 197, 178, 0.3);
+  }
+  43%, 84% {
+    color: #3e9b4f;
+    background: rgba(62, 155, 79, 0.1);
+  }
+  100% {
+    color: rgba(42, 23, 19, 0.5);
+    background: rgba(231, 197, 178, 0.3);
+  }
+}
+
+@keyframes noteFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes progressLine {
+  0%, 12% {
+    transform: scaleY(0);
+  }
+  62%, 84% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes runStep {
+  0%, 12% {
+    opacity: 0.35;
+  }
+  28%, 84% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes runCheck {
+  0%, 16% {
+    color: rgba(255, 252, 249, 0.22);
+    border-color: rgba(255, 252, 249, 0.15);
+    transform: scale(0.92);
+  }
+  29%, 84% {
+    color: #82d591;
+    border-color: rgba(130, 213, 145, 0.4);
+    transform: scale(1);
+  }
+  100% {
+    color: rgba(255, 252, 249, 0.22);
+    border-color: rgba(255, 252, 249, 0.15);
+    transform: scale(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroDemo,
+  .applyButton::after,
+  .demoCursor,
+  .workflowLine,
+  .companyCard,
+  .companyCard .statusBadge,
+  .floatingNote,
+  .runList::after,
+  .runItem,
+  .runCheck {
+    animation: none;
+  }
+
+  .companyCard,
+  .runItem {
+    opacity: 1;
+    transform: none;
+  }
+
+  .demoCursor {
+    display: none;
+  }
+
+  .workflowLine {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  .runList::after {
+    transform: scaleY(1);
+  }
+}
