@@ -9,6 +9,7 @@ import {
   type StoredCandidateProfile,
 } from "../src/lib/application-store";
 import { AUTH_COOKIE, createAuthToken } from "../src/lib/auth";
+import { portfolioUrlForApplication } from "../src/lib/application-profile-values";
 import { tryDirectAtsApply } from "../src/lib/ats-apply";
 import { AUTO_APPLY_RULES, decideJob } from "../src/lib/auto-apply";
 import {
@@ -402,6 +403,27 @@ function applicationStatus(result: RouteResult): string | undefined {
 }
 
 const cases: ManualTestCase[] = [
+  {
+    id: "portfolio-falls-back-to-github",
+    description: "A portfolio-only employer field receives GitHub when no portfolio URL exists.",
+    failureMeans: "AI would leave a usable portfolio field blank for GitHub-only candidates.",
+    async run() {
+      assert.equal(
+        portfolioUrlForApplication({
+          portfolioUrl: "",
+          githubUrl: "https://github.com/jamie-candidate",
+        }),
+        "https://github.com/jamie-candidate"
+      );
+      assert.equal(
+        portfolioUrlForApplication({
+          portfolioUrl: "https://jamie.example.test",
+          githubUrl: "https://github.com/jamie-candidate",
+        }),
+        "https://jamie.example.test"
+      );
+    },
+  },
   {
     id: "cv-readable",
     description: "A text CV with usable content is accepted and its bytes are kept.",

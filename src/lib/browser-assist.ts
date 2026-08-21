@@ -8,6 +8,7 @@ import {
   type Frame,
 } from "playwright-core";
 import type { StoredCandidateProfile } from "@/lib/application-store";
+import { portfolioUrlForApplication } from "@/lib/application-profile-values";
 import type { Job } from "@/lib/jobs";
 
 type GlobalWithBrowser = typeof globalThis & {
@@ -243,7 +244,7 @@ async function fillFrame(
       'input[name*="website" i]',
       'input[placeholder*="portfolio" i]',
     ],
-    profile.portfolioUrl
+    portfolioUrlForApplication(profile)
   );
   await fill(
     [
