@@ -28,7 +28,10 @@ async function main() {
   const browser = await chromium.launch({ channel: "chrome", headless: true });
 
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    const page = await browser.newPage({
+      viewport: { width: 1280, height: 900 },
+      extraHTTPHeaders: { "x-vercel-ip-country": "GE" },
+    });
     await page.route("**/api/jobs?*", async (route) => {
       await route.fulfill({
         status: 200,
@@ -109,7 +112,7 @@ async function main() {
       await page.getByText("Continue with Google", { exact: true }).waitFor();
     } catch {
       throw new Error(
-        `Registration account step did not render. URL: ${page.url()}. UI: ${(await page.locator("body").innerText()).slice(0, 1_500)}`
+        `Registration account step did not render. URL: ${page.url()}. API: ${apiResponses.join(", ")}. UI: ${(await page.locator("body").innerText()).slice(0, 1_500)}`
       );
     }
     await page.locator('header a[href="/register#register"]').click();
@@ -135,10 +138,30 @@ async function main() {
       .waitFor();
     await page.locator('input[name="firstName"]').fill("");
     await page.locator('input[name="lastName"]').fill("");
-    await page.getByRole("textbox", { name: "Phone number" }).fill("");
+    const phoneCountryButton = page.getByRole("combobox", {
+      name: "Phone country",
+    });
+    const phoneNumberInput = page.getByRole("textbox", { name: "Phone number" });
+    if (
+      !(await phoneCountryButton.textContent())?.includes("+995") ||
+      (await phoneCountryButton.locator('img[data-country="ge"]').count()) !== 1 ||
+      (await phoneNumberInput.getAttribute("placeholder")) !== "555 12 34 56"
+    ) {
+      throw new Error("The IP-derived Georgian phone country or placeholder was not applied.");
+    }
+    await phoneNumberInput.fill("599 312203 466");
+    if ((await phoneNumberInput.inputValue()).replace(/\D/g, "") !== "599312203") {
+      throw new Error("Phone input allowed more digits than Georgia supports.");
+    }
+    await phoneNumberInput.fill("123");
+    await phoneNumberInput.blur();
+    await page
+      .getByText("Enter a complete phone number for Georgia.", { exact: true })
+      .waitFor();
+    await phoneNumberInput.fill("");
     await page.locator('input[name="location"]').fill("");
     await page.locator('input[name="linkedinUrl"]').fill("");
-    await page.getByRole("combobox", { name: "Phone country" }).click();
+    await phoneCountryButton.click();
     const phoneCountrySearch = page.getByRole("searchbox", {
       name: "Phone country search",
     });
@@ -173,7 +196,7 @@ async function main() {
     }
 
     await page.route("**/api/auth/resume-prefill", async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -188,7 +211,15 @@ async function main() {
             githubUrl: "https://github.com/registration-test",
             portfolioUrl: "https://registration-test.example.com",
             coverLetter: "I build reliable product software with TypeScript and React.",
-            skills: ["TypeScript", "React", "PostgreSQL"],
+            skills: [
+              "TypeScript",
+              "React",
+              "PostgreSQL",
+              "Reusable components",
+              "reusable components",
+              "Lazy loading",
+              "lazy loading",
+            ],
             aiProductionExperience: "yes",
             typescriptExperience: "yes",
             aiFrameworksExperience: "yes",
@@ -218,12 +249,29 @@ async function main() {
     });
     const resumeReadingState = page.locator("[data-resume-reading]");
     await resumeReadingState.waitFor();
-    await resumeReadingState
-      .getByText("Reading your CV...", { exact: true })
-      .waitFor();
+    try {
+      await resumeReadingState
+        .getByText("Reading your CV...", { exact: true })
+        .waitFor({ timeout: 5_000 });
+    } catch {
+      throw new Error(
+        `CV reading phase did not render. API: ${apiResponses.join(", ")}. State: ${(await resumeReadingState.textContent().catch(() => "detached")) ?? "detached"}`
+      );
+    }
     await resumeReadingState
       .getByText("registration-test-resume.pdf", { exact: false })
       .waitFor();
+    const resumeProgress = resumeReadingState.getByRole("progressbar", {
+      name: "CV upload and reading progress",
+    });
+    const readingProgress = Number(
+      await resumeProgress.getAttribute("aria-valuenow")
+    );
+    if (readingProgress < 65 || readingProgress >= 100) {
+      throw new Error(
+        `CV reading progress was not estimated between upload and completion: ${readingProgress}.`
+      );
+    }
     const cvFieldsDisabled = await page
       .locator('input[name="firstName"]')
       .isDisabled();
@@ -307,7 +355,7 @@ async function main() {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          skills: ["Next.js", "Next.js routing", "React"],
+          skills: ["Next.js", "next.js", "Next.js routing", "React", "react"],
           source: "catalog+esco",
         }),
       });
@@ -315,6 +363,28 @@ async function main() {
     await page.getByRole("combobox", { name: "Choose skills" }).click();
     const skillSearch = page.getByRole("searchbox", { name: "Search skills" });
     const skillListbox = page.getByRole("listbox", { name: "Skill suggestions" });
+    const skillActions = page.locator("[data-skill-actions]");
+    await page.waitForFunction(() => {
+      const actions = document.querySelector<HTMLElement>("[data-skill-actions]");
+      const bounds = actions?.getBoundingClientRect();
+      return Boolean(bounds && bounds.bottom <= window.innerHeight - 2);
+    });
+    await page.waitForTimeout(200);
+    const skillActionsBeforeScroll = await skillActions.boundingBox();
+    await skillListbox.evaluate((listbox) => {
+      listbox.scrollTop = listbox.scrollHeight;
+    });
+    const skillActionsAfterScroll = await skillActions.boundingBox();
+    if (
+      !skillActionsBeforeScroll ||
+      !skillActionsAfterScroll ||
+      Math.abs(skillActionsBeforeScroll.y - skillActionsAfterScroll.y) > 1 ||
+      skillActionsAfterScroll.y + skillActionsAfterScroll.height > 900
+    ) {
+      throw new Error(
+        `Skill Select and Clear all actions did not stay visible while scrolling: ${JSON.stringify({ skillActionsBeforeScroll, skillActionsAfterScroll })}.`
+      );
+    }
     await skillSearch.fill("Next.js");
     await skillListbox
       .getByRole("option", { name: "Next.js", exact: true })
@@ -333,7 +403,7 @@ async function main() {
       throw new Error("Skill picker did not show the selected count on Clear all.");
     }
     await clearAllSkills.click();
-    await page.getByRole("button", { name: "Save skills" }).click();
+    await page.getByRole("button", { name: "Select skills" }).click();
     await skillListbox.waitFor({ state: "detached" });
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page
@@ -345,7 +415,7 @@ async function main() {
     await skillListbox.getByRole("option", { name: "TypeScript", exact: true }).click();
     await skillListbox.getByRole("option", { name: "React", exact: true }).click();
     await skillListbox.getByRole("option", { name: "PostgreSQL", exact: true }).click();
-    await page.getByRole("button", { name: "Save skills" }).click();
+    await page.getByRole("button", { name: "Select skills" }).click();
     await skillListbox.waitFor({ state: "detached" });
     const registrationCardHeights = await page.evaluate(() => {
       const steps = document.querySelector<HTMLElement>(
@@ -382,12 +452,36 @@ async function main() {
     }
     const workCountries = "Countries where you can work without sponsorship";
     await page.getByRole("combobox", { name: workCountries }).click();
+    const workCountryListbox = page.getByRole("listbox", { name: workCountries });
+    const countryActions = page.locator("[data-multi-select-actions]");
+    await page.waitForFunction(() => {
+      const actions = document.querySelector<HTMLElement>(
+        "[data-multi-select-actions]"
+      );
+      const bounds = actions?.getBoundingClientRect();
+      return Boolean(bounds && bounds.bottom <= window.innerHeight - 2);
+    });
+    await page.waitForTimeout(200);
+    const countryActionsBeforeScroll = await countryActions.boundingBox();
+    await workCountryListbox.evaluate((listbox) => {
+      listbox.scrollTop = listbox.scrollHeight;
+    });
+    const countryActionsAfterScroll = await countryActions.boundingBox();
+    if (
+      !countryActionsBeforeScroll ||
+      !countryActionsAfterScroll ||
+      Math.abs(countryActionsBeforeScroll.y - countryActionsAfterScroll.y) > 1 ||
+      countryActionsAfterScroll.y + countryActionsAfterScroll.height > 900
+    ) {
+      throw new Error(
+        `Country Done and Clear actions did not stay visible while scrolling: ${JSON.stringify({ countryActionsBeforeScroll, countryActionsAfterScroll })}.`
+      );
+    }
     const workCountrySearch = page.getByRole("searchbox", {
       name: `${workCountries} search`,
     });
     await workCountrySearch.fill("Georgia");
-    await page
-      .getByRole("listbox", { name: workCountries })
+    await workCountryListbox
       .getByRole("option", { name: /Georgia/ })
       .click();
     await page.getByRole("button", { name: "Done" }).click();
@@ -754,6 +848,9 @@ async function main() {
         countryPhoneInput: true,
         searchableCountryCode: true,
         splitLocalPhoneNumber: true,
+        ipDerivedPhoneCountry: true,
+        countryPhonePlaceholder: true,
+        phoneLengthAndValidity: true,
         equalRegistrationCards: true,
         headerRegisterAnchor: true,
         validatesBeforeAccountCreation: true,
@@ -761,6 +858,9 @@ async function main() {
         approvedResumeState: true,
         resumeReplaceAndRemove: true,
         cvAnswerPrefill: true,
+        measuredCvProgress: true,
+        duplicateSkillsRemoved: true,
+        pinnedDropdownActions: true,
         introductionSkillsAndLinksStored: true,
         workAuthorizationStored: true,
         optionalDemographicsStored: true,

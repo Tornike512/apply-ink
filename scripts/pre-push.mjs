@@ -161,6 +161,7 @@ async function main() {
     ["Authentication tests", () => runNpmScript("auth:test")],
     ["Google authentication tests", () => runNpmScript("google-auth:test")],
     ["Onboarding field tests", () => runNpmScript("onboarding-fields:test")],
+    ["Phone country and validation tests", () => runNpmScript("phone-number:test")],
     ["Job sending tests", () => runNpmScript("job-sending:test")],
     ["Production build", () => runNpmScript("build")],
     ["Temporary application server", () => startApplication()],
