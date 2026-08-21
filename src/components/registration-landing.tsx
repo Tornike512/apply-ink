@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApplicationQuestionFields } from "@/components/application-question-fields";
 import { Button } from "@/components/button";
@@ -54,6 +54,20 @@ type ResumePrefillResponse = {
   error?: string;
 };
 
+type ResumePrefillStage = "uploading" | "reading" | "complete";
+
+function mergeUniqueSkills(current: string[], detected: string[]): string[] {
+  const seen = new Set<string>();
+  return [...current, ...detected].reduce<string[]>((result, rawSkill) => {
+    const skill = rawSkill.trim().replace(/\s+/g, " ").slice(0, 80);
+    const normalized = skill.toLocaleLowerCase();
+    if (!skill || seen.has(normalized)) return result;
+    seen.add(normalized);
+    result.push(skill);
+    return result;
+  }, []).slice(0, 50);
+}
+
 function countFormAnswers(form: HTMLFormElement): number {
   const formData = new FormData(form);
   return APPLICATION_ANSWER_KEYS.filter((key) => {
@@ -75,12 +89,14 @@ type RegistrationWizardProps = {
   googleEnabled: boolean;
   authenticatedUser?: { email: string } | null;
   googleError?: string | null;
+  defaultPhoneCountry?: string;
 };
 
 export function RegistrationWizard({
   googleEnabled,
   authenticatedUser = null,
   googleError = null,
+  defaultPhoneCountry = "us",
 }: RegistrationWizardProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -90,10 +106,17 @@ export function RegistrationWizard({
   const resumeInputRef = useRef<HTMLInputElement>(null);
   const resumeUploadButtonRef = useRef<HTMLButtonElement>(null);
   const prefillRequestRef = useRef(0);
+  const prefillXhrRef = useRef<XMLHttpRequest | null>(null);
+  const prefillProgressTimerRef = useRef<number | null>(null);
+  const prefillUploadFallbackTimerRef = useRef<number | null>(null);
+  const prefillReadingStartedAtRef = useRef<number | null>(null);
   const [step, setStep] = useState(0);
   const [furthestStep, setFurthestStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [prefilling, setPrefilling] = useState(false);
+  const [prefillProgress, setPrefillProgress] = useState(0);
+  const [prefillStage, setPrefillStage] =
+    useState<ResumePrefillStage>("uploading");
   const [removingResume, setRemovingResume] = useState(false);
   const [resumeReadError, setResumeReadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -116,6 +139,51 @@ export function RegistrationWizard({
   const visibleAnswerCount = answerCount ?? profile.applicationAnswerCount;
   const coverage = Math.round(
     (visibleAnswerCount / profile.applicationAnswerTotal) * 100
+  );
+
+  function clearPrefillProgressTimer() {
+    if (prefillProgressTimerRef.current !== null) {
+      window.clearInterval(prefillProgressTimerRef.current);
+      prefillProgressTimerRef.current = null;
+    }
+  }
+
+  function beginReadingEstimate(requestId: number) {
+    if (prefillRequestRef.current !== requestId) return;
+    if (prefillUploadFallbackTimerRef.current !== null) {
+      window.clearTimeout(prefillUploadFallbackTimerRef.current);
+      prefillUploadFallbackTimerRef.current = null;
+    }
+    if (prefillReadingStartedAtRef.current === null) {
+      prefillReadingStartedAtRef.current = Date.now();
+    }
+    setPrefillStage("reading");
+    setPrefillProgress((current) => Math.max(current, 65));
+    clearPrefillProgressTimer();
+    prefillProgressTimerRef.current = window.setInterval(() => {
+      if (prefillRequestRef.current !== requestId) {
+        clearPrefillProgressTimer();
+        return;
+      }
+      setPrefillProgress((current) =>
+        current >= 94
+          ? 94
+          : Math.min(94, current + Math.max(0.75, (94 - current) * 0.1))
+      );
+    }, 300);
+  }
+
+  useEffect(
+    () => () => {
+      prefillXhrRef.current?.abort();
+      if (prefillProgressTimerRef.current !== null) {
+        window.clearInterval(prefillProgressTimerRef.current);
+      }
+      if (prefillUploadFallbackTimerRef.current !== null) {
+        window.clearTimeout(prefillUploadFallbackTimerRef.current);
+      }
+    },
+    []
   );
 
   function scrollToWizard() {
@@ -220,19 +288,83 @@ export function RegistrationWizard({
     if (!form) return;
     const requestId = prefillRequestRef.current + 1;
     prefillRequestRef.current = requestId;
+    prefillXhrRef.current?.abort();
+    clearPrefillProgressTimer();
+    if (prefillUploadFallbackTimerRef.current !== null) {
+      window.clearTimeout(prefillUploadFallbackTimerRef.current);
+      prefillUploadFallbackTimerRef.current = null;
+    }
+    prefillReadingStartedAtRef.current = null;
     setPrefilling(true);
+    setPrefillStage(resume ? "uploading" : "reading");
+    setPrefillProgress(resume ? 5 : 65);
     setResumeReadError(null);
-    setMessage("Reading your CV and finding reusable answers...");
+    setMessage(
+      resume
+        ? "Uploading your CV and finding reusable answers..."
+        : "Reading your saved CV and finding reusable answers..."
+    );
 
     const formData = new FormData();
     if (resume) formData.set("resume", resume);
     try {
-      const response = await fetch("/api/auth/resume-prefill", {
-        method: "POST",
-        headers: { "x-apply-ink": "1" },
-        body: formData,
+      if (resume) {
+        const estimatedUploadMs = Math.max(
+          400,
+          Math.min(2_500, (resume.size / (2 * 1024 * 1024)) * 1_000)
+        );
+        prefillUploadFallbackTimerRef.current = window.setTimeout(
+          () => beginReadingEstimate(requestId),
+          estimatedUploadMs
+        );
+      } else {
+        beginReadingEstimate(requestId);
+      }
+      const xhr = new XMLHttpRequest();
+      prefillXhrRef.current = xhr;
+      const response = await new Promise<{
+        ok: boolean;
+        data: ResumePrefillResponse;
+      }>((resolve, reject) => {
+        xhr.open("POST", "/api/auth/resume-prefill");
+        xhr.responseType = "json";
+        xhr.setRequestHeader("x-apply-ink", "1");
+        xhr.upload.addEventListener("progress", (event) => {
+          if (
+            prefillRequestRef.current !== requestId ||
+            !event.lengthComputable ||
+            event.total === 0
+          ) {
+            return;
+          }
+          setPrefillProgress(Math.min(65, 5 + (event.loaded / event.total) * 60));
+        });
+        xhr.upload.addEventListener("loadend", () => {
+          if (resume) beginReadingEstimate(requestId);
+        });
+        xhr.addEventListener("load", () => {
+          beginReadingEstimate(requestId);
+          const data =
+            xhr.response && typeof xhr.response === "object"
+              ? (xhr.response as ResumePrefillResponse)
+              : ({} as ResumePrefillResponse);
+          const readingElapsed = prefillReadingStartedAtRef.current
+            ? Date.now() - prefillReadingStartedAtRef.current
+            : 0;
+          window.setTimeout(
+            () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, data }),
+            Math.max(0, 300 - readingElapsed)
+          );
+        });
+        xhr.addEventListener("error", () =>
+          reject(new Error("Could not connect while reading this CV."))
+        );
+        xhr.addEventListener("abort", () =>
+          reject(new DOMException("CV reading was cancelled.", "AbortError"))
+        );
+        xhr.send(formData);
       });
-      const data = (await response.json().catch(() => ({}))) as ResumePrefillResponse;
+      const data = response.data;
       if (!response.ok || !data.answers) {
         throw new Error(data.error ?? "Could not read answers from this CV.");
       }
@@ -241,7 +373,7 @@ export function RegistrationWizard({
       let appliedCount = 0;
       for (const [name, value] of Object.entries(data.answers)) {
         if (name === "skills" && Array.isArray(value)) {
-          const merged = Array.from(new Set([...skills, ...value])).slice(0, 50);
+          const merged = mergeUniqueSkills(skills, value);
           setEditedSkills(merged);
           appliedCount += Math.max(0, merged.length - skills.length);
           continue;
@@ -292,13 +424,18 @@ export function RegistrationWizard({
       }
       setAnswerCount(countFormAnswers(form));
       setApprovedResumeName(resume?.name ?? profile.resumeFileName);
+      clearPrefillProgressTimer();
+      setPrefillStage("complete");
+      setPrefillProgress(100);
       setMessage(
         appliedCount > 0
           ? `${appliedCount} answer${appliedCount === 1 ? "" : "s"} filled from your CV. Review them before continuing.`
           : "CV read successfully. Your existing answers were kept."
       );
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
     } catch (error) {
       if (prefillRequestRef.current !== requestId) return;
+      if (error instanceof DOMException && error.name === "AbortError") return;
       const nextMessage =
         error instanceof Error
           ? error.message
@@ -311,13 +448,29 @@ export function RegistrationWizard({
         setApprovedResumeName(null);
       }
     } finally {
-      if (prefillRequestRef.current === requestId) setPrefilling(false);
+      if (prefillRequestRef.current === requestId) {
+        clearPrefillProgressTimer();
+        if (prefillUploadFallbackTimerRef.current !== null) {
+          window.clearTimeout(prefillUploadFallbackTimerRef.current);
+          prefillUploadFallbackTimerRef.current = null;
+        }
+        prefillXhrRef.current = null;
+        setPrefilling(false);
+      }
     }
   }
 
   async function removeResume() {
     const removingSelectedResume = Boolean(selectedResumeName);
     prefillRequestRef.current += 1;
+    prefillXhrRef.current?.abort();
+    prefillXhrRef.current = null;
+    clearPrefillProgressTimer();
+    if (prefillUploadFallbackTimerRef.current !== null) {
+      window.clearTimeout(prefillUploadFallbackTimerRef.current);
+      prefillUploadFallbackTimerRef.current = null;
+    }
+    prefillReadingStartedAtRef.current = null;
     if (resumeInputRef.current) resumeInputRef.current.value = "";
     setSelectedResumeName(null);
     setApprovedResumeName(null);
@@ -673,20 +826,42 @@ export function RegistrationWizard({
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-bold text-espresso">
-                              Reading your CV...
+                              {prefillStage === "uploading"
+                                ? "Uploading your CV..."
+                                : prefillStage === "complete"
+                                  ? "CV ready"
+                                  : "Reading your CV..."}
                             </span>
                             <span className="mt-0.5 block truncate text-xs text-espresso/55">
                               {selectedResumeName ?? visibleResumeName ?? "Saved CV"}
                             </span>
                           </span>
                         </div>
-                        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-sand/55">
-                          <span className="block h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-terracotta to-success" />
+                        <div
+                          role="progressbar"
+                          aria-label="CV upload and reading progress"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={Math.round(prefillProgress)}
+                          className="mt-4 h-1.5 overflow-hidden rounded-full bg-sand/55"
+                        >
+                          <span
+                            className="block h-full rounded-full bg-gradient-to-r from-terracotta to-success transition-[width] duration-300 ease-out"
+                            style={{ width: `${prefillProgress}%` }}
+                          />
                         </div>
-                        <p className="mt-3 text-xs leading-5 text-espresso/55">
-                          Checking that the document is readable, finding verified details,
-                          and filling the fields below. This usually takes a few seconds.
-                        </p>
+                        <div className="mt-3 flex items-start justify-between gap-4 text-xs leading-5 text-espresso/55">
+                          <p>
+                            {prefillStage === "uploading"
+                              ? "Uploading the document. This percentage uses the actual bytes sent."
+                              : prefillStage === "complete"
+                                ? "Readable details found and applied."
+                                : "Checking readability and filling verified details. This part is estimated."}
+                          </p>
+                          <span className="shrink-0 font-bold text-sienna">
+                            {Math.round(prefillProgress)}%
+                          </span>
+                        </div>
                       </div>
                     ) : visibleResumeName ? (
                       <div
@@ -780,6 +955,7 @@ export function RegistrationWizard({
                       <CountryPhoneInput
                         value={phone}
                         onChange={setEditedPhone}
+                        defaultCountry={defaultPhoneCountry}
                         required
                       />
                     </div>

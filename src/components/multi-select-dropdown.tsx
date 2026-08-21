@@ -20,6 +20,14 @@ type MultiSelectDropdownProps = {
   searchPlaceholder?: string;
 };
 
+type MenuPosition = {
+  left: number;
+  width: number;
+  maxHeight: number;
+  top?: number;
+  bottom?: number;
+};
+
 const ANIMATION_MS = 160;
 
 export function MultiSelectDropdown({
@@ -35,8 +43,16 @@ export function MultiSelectDropdown({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const [openAbove, setOpenAbove] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>({
+    left: 12,
+    width: 288,
+    maxHeight: 448,
+    top: 12,
+  });
   const listboxId = `multi-select-${useId().replace(/:/g, "")}`;
   const visibleOptions = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
@@ -58,6 +74,36 @@ export function MultiSelectDropdown({
 
   function show() {
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    const triggerBounds = triggerRef.current?.getBoundingClientRect();
+    if (triggerBounds) {
+      const viewportPadding = 12;
+      const menuGap = 8;
+      const anchorTop = Math.min(
+        Math.max(triggerBounds.top, viewportPadding),
+        window.innerHeight - viewportPadding
+      );
+      const anchorBottom = Math.min(
+        Math.max(triggerBounds.bottom, viewportPadding),
+        window.innerHeight - viewportPadding
+      );
+      const below = window.innerHeight - anchorBottom - menuGap - viewportPadding;
+      const above = anchorTop - menuGap - viewportPadding;
+      const shouldOpenAbove = below < 320 && above > below;
+      setOpenAbove(shouldOpenAbove);
+      const width = Math.min(400, window.innerWidth - viewportPadding * 2);
+      const left = Math.min(
+        Math.max(triggerBounds.left, viewportPadding),
+        window.innerWidth - width - viewportPadding
+      );
+      setMenuPosition({
+        left,
+        width,
+        maxHeight: Math.max(144, Math.min(448, shouldOpenAbove ? above : below)),
+        ...(shouldOpenAbove
+          ? { bottom: window.innerHeight - anchorTop + menuGap }
+          : { top: anchorBottom + menuGap }),
+      });
+    }
     setMounted(true);
     requestAnimationFrame(() => setOpen(true));
   }
@@ -101,6 +147,7 @@ export function MultiSelectDropdown({
     <div ref={rootRef} className="relative mt-1.5">
       <input type="hidden" name={name} value={JSON.stringify(values)} readOnly />
       <button
+        ref={triggerRef}
         type="button"
         role="combobox"
         aria-label={ariaLabel}
@@ -133,13 +180,15 @@ export function MultiSelectDropdown({
 
       {mounted && (
         <div
-          className={`absolute top-full left-0 z-50 mt-2 w-[min(25rem,calc(100vw-2.5rem))] transform-gpu overflow-hidden rounded-2xl border border-sand bg-surface p-1.5 shadow-[0_18px_50px_rgba(78,47,36,0.18)] transition-[opacity,transform] duration-[160ms] ${
+          data-multi-select-menu
+          style={menuPosition}
+          className={`fixed z-50 flex transform-gpu flex-col overflow-hidden rounded-2xl border border-sand bg-surface p-1.5 shadow-[0_18px_50px_rgba(78,47,36,0.18)] transition-[opacity,transform] duration-[160ms] ${
             open
               ? "translate-y-0 opacity-100"
-              : "pointer-events-none -translate-y-1 opacity-0"
+              : `pointer-events-none opacity-0 ${openAbove ? "translate-y-1" : "-translate-y-1"}`
           }`}
         >
-          <div className="border-b border-sand/60 p-1.5">
+          <div className="shrink-0 border-b border-sand/60 p-1.5">
             <input
               ref={searchRef}
               type="search"
@@ -155,7 +204,7 @@ export function MultiSelectDropdown({
             role="listbox"
             aria-label={ariaLabel}
             aria-multiselectable="true"
-            className="max-h-64 overflow-y-auto py-1"
+            className="min-h-0 flex-1 overflow-y-auto py-1"
           >
             {visibleOptions.map((option) => {
               const checked = values.includes(option.value);
@@ -191,7 +240,10 @@ export function MultiSelectDropdown({
               </p>
             )}
           </div>
-          <div className="flex items-center justify-between border-t border-sand/60 px-2 py-1.5">
+          <div
+            data-multi-select-actions
+            className="flex shrink-0 items-center justify-between border-t border-sand/60 bg-surface px-2 py-1.5"
+          >
             <button
               type="button"
               onClick={() => onValuesChange([])}

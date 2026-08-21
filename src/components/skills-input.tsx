@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -18,6 +19,14 @@ type SkillsInputProps = {
   required?: boolean;
 };
 
+type MenuPosition = {
+  left: number;
+  width: number;
+  maxHeight: number;
+  top?: number;
+  bottom?: number;
+};
+
 const ANIMATION_MS = 160;
 const MAX_SKILLS = 50;
 
@@ -25,6 +34,22 @@ function hasSkill(skills: string[], candidate: string): boolean {
   return skills.some(
     (skill) => skill.toLocaleLowerCase() === candidate.toLocaleLowerCase()
   );
+}
+
+function normalizedSkill(skill: string): string {
+  return skill.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+function deduplicateSkills(skills: readonly string[]): string[] {
+  const seen = new Set<string>();
+  return skills.reduce<string[]>((result, rawSkill) => {
+    const skill = rawSkill.trim().replace(/\s+/g, " ").slice(0, 80);
+    const normalized = normalizedSkill(skill);
+    if (!skill || seen.has(normalized)) return result;
+    seen.add(normalized);
+    result.push(skill);
+    return result;
+  }, []);
 }
 
 export function SkillsInput({
@@ -43,8 +68,16 @@ export function SkillsInput({
   const [pendingSkills, setPendingSkills] = useState(value);
   const [suggestions, setSuggestions] = useState<string[]>([...POPULAR_SKILLS]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [openAbove, setOpenAbove] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>({
+    left: 12,
+    width: 288,
+    maxHeight: 520,
+    top: 12,
+  });
   const debouncedQuery = useDebounce(query, 300);
   const listboxId = `skill-picker-${useId().replace(/:/g, "")}`;
+  const selectedSkills = useMemo(() => deduplicateSkills(value), [value]);
 
   const clearTimers = useCallback(() => {
     if (openTimerRef.current !== null) window.clearTimeout(openTimerRef.current);
@@ -58,19 +91,52 @@ export function SkillsInput({
       clearTimers();
       setOpen(false);
       setQuery("");
-      if (!keepPending) setPendingSkills(value);
+      if (!keepPending) setPendingSkills(selectedSkills);
       closeTimerRef.current = window.setTimeout(() => {
         setMounted(false);
         closeTimerRef.current = null;
         if (returnFocus) triggerRef.current?.focus();
       }, ANIMATION_MS);
     },
-    [clearTimers, value]
+    [clearTimers, selectedSkills]
   );
 
   function openPicker() {
     clearTimers();
-    setPendingSkills(value);
+    const triggerBounds = triggerRef.current?.getBoundingClientRect();
+    if (triggerBounds) {
+      const viewportPadding = 12;
+      const menuGap = 8;
+      const anchorTop = Math.min(
+        Math.max(triggerBounds.top, viewportPadding),
+        window.innerHeight - viewportPadding
+      );
+      const anchorBottom = Math.min(
+        Math.max(triggerBounds.bottom, viewportPadding),
+        window.innerHeight - viewportPadding
+      );
+      const below = window.innerHeight - anchorBottom - menuGap - viewportPadding;
+      const above = anchorTop - menuGap - viewportPadding;
+      const shouldOpenAbove = below < 360 && above > below;
+      setOpenAbove(shouldOpenAbove);
+      const width = Math.min(
+        triggerBounds.width,
+        window.innerWidth - viewportPadding * 2
+      );
+      const left = Math.min(
+        Math.max(triggerBounds.left, viewportPadding),
+        window.innerWidth - width - viewportPadding
+      );
+      setMenuPosition({
+        left,
+        width,
+        maxHeight: Math.max(160, Math.min(520, shouldOpenAbove ? above : below)),
+        ...(shouldOpenAbove
+          ? { bottom: window.innerHeight - anchorTop + menuGap }
+          : { top: anchorBottom + menuGap }),
+      });
+    }
+    setPendingSkills(selectedSkills);
     setSuggestions([...POPULAR_SKILLS]);
     setQuery("");
     setLoadingSuggestions(false);
@@ -182,12 +248,17 @@ export function SkillsInput({
 
   return (
     <div ref={rootRef} className="relative mt-1.5">
-      <input type="hidden" name="skills" value={JSON.stringify(value)} readOnly />
-      {value.length > 0 && (
+      <input
+        type="hidden"
+        name="skills"
+        value={JSON.stringify(selectedSkills)}
+        readOnly
+      />
+      {selectedSkills.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2" aria-label="Selected skills">
-          {value.map((skill) => (
+          {selectedSkills.map((skill, index) => (
             <span
-              key={skill.toLocaleLowerCase()}
+              key={`${normalizedSkill(skill)}-${index}`}
               className="inline-flex items-center gap-1.5 rounded-full bg-sand/55 px-2.5 py-1 text-xs font-semibold text-espresso"
             >
               {skill}
@@ -195,7 +266,11 @@ export function SkillsInput({
                 type="button"
                 aria-label={`Remove ${skill}`}
                 onClick={() =>
-                  onChange(value.filter((current) => current !== skill))
+                  onChange(
+                    selectedSkills.filter(
+                      (current) => normalizedSkill(current) !== normalizedSkill(skill)
+                    )
+                  )
                 }
                 className="cursor-pointer text-espresso/45 hover:text-sienna"
               >
@@ -216,9 +291,9 @@ export function SkillsInput({
         onClick={() => (mounted ? closePicker() : openPicker())}
         className="flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-sand bg-surface px-3.5 py-2.5 text-left text-sm font-medium text-espresso outline-none transition-colors hover:border-terracotta focus:border-terracotta"
       >
-        <span className={value.length ? "text-espresso" : "text-espresso/40"}>
-          {value.length
-            ? `Edit skills (${value.length} selected)`
+        <span className={selectedSkills.length ? "text-espresso" : "text-espresso/40"}>
+          {selectedSkills.length
+            ? `Edit skills (${selectedSkills.length} selected)`
             : "Search and choose your skills"}
         </span>
         <svg
@@ -239,13 +314,15 @@ export function SkillsInput({
 
       {mounted && (
         <div
-          className={`absolute top-full left-0 z-50 mt-2 w-full min-w-[18rem] transform-gpu overflow-hidden rounded-2xl border border-sand bg-surface shadow-[0_18px_50px_rgba(78,47,36,0.18)] transition-[opacity,transform] duration-[160ms] ease-out will-change-[transform,opacity] motion-reduce:transition-none ${
+          data-skill-menu
+          style={menuPosition}
+          className={`fixed z-50 flex min-w-[18rem] transform-gpu flex-col overflow-hidden rounded-2xl border border-sand bg-surface shadow-[0_18px_50px_rgba(78,47,36,0.18)] transition-[opacity,transform] duration-[160ms] ease-out will-change-[transform,opacity] motion-reduce:transition-none ${
             open
               ? "translate-y-0 opacity-100"
-              : "pointer-events-none -translate-y-1 opacity-0"
+              : `pointer-events-none opacity-0 ${openAbove ? "translate-y-1" : "-translate-y-1"}`
           }`}
         >
-          <div className="flex items-center justify-between border-b border-sand/65 px-4 py-3">
+          <div className="flex shrink-0 items-center justify-between border-b border-sand/65 px-4 py-3">
             <div>
               <p className="text-sm font-bold text-espresso">Choose skills</p>
               <p className="text-xs font-normal text-espresso/50">
@@ -261,7 +338,7 @@ export function SkillsInput({
               ×
             </button>
           </div>
-          <div className="p-3">
+          <div className="shrink-0 p-3">
             <div className="relative">
               <input
                 ref={searchRef}
@@ -299,7 +376,7 @@ export function SkillsInput({
             role="listbox"
             aria-label="Skill suggestions"
             aria-multiselectable="true"
-            className="max-h-64 overflow-y-auto border-y border-sand/55 p-1.5"
+            className="min-h-0 flex-1 overflow-y-auto border-y border-sand/55 p-1.5"
           >
             {loadingSuggestions && (
               <div className="flex items-center justify-center gap-2 px-3 py-3 text-xs font-normal text-espresso/55">
@@ -318,11 +395,11 @@ export function SkillsInput({
               </button>
             )}
             {!loadingSuggestions &&
-              displayedSuggestions.map((skill) => {
+              deduplicateSkills(displayedSuggestions).map((skill, index) => {
                 const selected = hasSkill(pendingSkills, skill);
                 return (
                   <button
-                    key={skill.toLocaleLowerCase()}
+                    key={`${normalizedSkill(skill)}-${index}`}
                     type="button"
                     role="option"
                     aria-selected={selected}
@@ -353,7 +430,10 @@ export function SkillsInput({
               </p>
             )}
           </div>
-          <div className="flex items-center justify-between gap-3 p-3">
+          <div
+            data-skill-actions
+            className="flex shrink-0 items-center justify-between gap-3 bg-surface p-3"
+          >
             <button
               type="button"
               onClick={() => setPendingSkills([])}
@@ -370,7 +450,7 @@ export function SkillsInput({
               }}
               className="min-w-28 cursor-pointer rounded-xl bg-sienna px-4 py-2.5 text-sm font-bold text-cream hover:bg-espresso"
             >
-              Save skills
+              Select skills
             </button>
           </div>
         </div>
