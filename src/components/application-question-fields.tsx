@@ -91,7 +91,7 @@ function YesNoDropdown({
         ariaLabel={label}
         defaultValue={value}
         options={YES_NO_OPTIONS}
-        className="mt-1.5"
+        className="mt-1.5 sm:mt-0"
       />
     </div>
   );

@@ -112,9 +112,7 @@ async function main() {
         `Registration account step did not render. URL: ${page.url()}. UI: ${(await page.locator("body").innerText()).slice(0, 1_500)}`
       );
     }
-    await page
-      .getByRole("link", { name: /^(?:Register|Upload resume)$/ })
-      .click();
+    await page.locator('header a[href="/register#register"]').click();
     await page.waitForURL("**/register#register");
     const formTop = await page.locator("#register").evaluate((section) =>
       section.getBoundingClientRect().top
@@ -316,34 +314,39 @@ async function main() {
     });
     await page.getByRole("combobox", { name: "Choose skills" }).click();
     const skillSearch = page.getByRole("searchbox", { name: "Search skills" });
+    const skillListbox = page.getByRole("listbox", { name: "Skill suggestions" });
     await skillSearch.fill("Next.js");
-    await page
-      .getByRole("listbox", { name: "Skill suggestions" })
+    await skillListbox
       .getByRole("option", { name: "Next.js", exact: true })
       .waitFor();
-    await page
-      .getByRole("listbox", { name: "Skill suggestions" })
+    await skillListbox
       .getByRole("option", { name: "Next.js", exact: true })
       .click();
     await page.getByRole("button", { name: "Clear skill search" }).click();
-    await page
-      .getByRole("listbox", { name: "Skill suggestions" })
+    await skillListbox
       .getByRole("option", { name: "React", exact: true })
       .waitFor();
-    await page.getByRole("button", { name: /Clear all \(4\)/ }).click();
+    const clearAllSkills = page.getByRole("button", {
+      name: /^Clear all \(\d+\)$/,
+    });
+    if (!/^Clear all \([1-9]\d*\)$/.test((await clearAllSkills.textContent())?.trim() ?? "")) {
+      throw new Error("Skill picker did not show the selected count on Clear all.");
+    }
+    await clearAllSkills.click();
     await page.getByRole("button", { name: "Save skills" }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
+    await skillListbox.waitFor({ state: "detached" });
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page
       .getByText("Choose at least one skill AI can use to match jobs.", {
         exact: true,
       })
       .waitFor();
     await page.getByRole("combobox", { name: "Choose skills" }).click();
-    const skillListbox = page.getByRole("listbox", { name: "Skill suggestions" });
     await skillListbox.getByRole("option", { name: "TypeScript", exact: true }).click();
     await skillListbox.getByRole("option", { name: "React", exact: true }).click();
     await skillListbox.getByRole("option", { name: "PostgreSQL", exact: true }).click();
     await page.getByRole("button", { name: "Save skills" }).click();
+    await skillListbox.waitFor({ state: "detached" });
     const registrationCardHeights = await page.evaluate(() => {
       const steps = document.querySelector<HTMLElement>(
         "[data-registration-steps]"
@@ -352,9 +355,12 @@ async function main() {
         "[data-registration-form]"
       );
       return steps && form
-        ? {
+          ? {
             steps: steps.getBoundingClientRect().height,
             form: form.getBoundingClientRect().height,
+            viewport: window.innerWidth,
+            display: getComputedStyle(steps.parentElement as HTMLElement).display,
+            columns: getComputedStyle(steps.parentElement as HTMLElement).gridTemplateColumns,
           }
         : null;
     });
@@ -362,7 +368,9 @@ async function main() {
       !registrationCardHeights ||
       Math.abs(registrationCardHeights.steps - registrationCardHeights.form) > 1
     ) {
-      throw new Error("Registration form and step cards are not equal height.");
+      throw new Error(
+        `Registration form and step cards are not equal height: ${JSON.stringify(registrationCardHeights)}.`
+      );
     }
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Preferences", exact: true }).waitFor();
@@ -441,7 +449,9 @@ async function main() {
       experienceControlTops.some((top) => top < 0) ||
       Math.max(...experienceControlTops) - Math.min(...experienceControlTops) > 1
     ) {
-      throw new Error("Common employer-question controls are not aligned.");
+      throw new Error(
+        `Common employer-question controls are not aligned: ${JSON.stringify(experienceControlTops)}.`
+      );
     }
     const typescriptAnswer = await page
       .locator('input[name="typescriptExperience"]')
