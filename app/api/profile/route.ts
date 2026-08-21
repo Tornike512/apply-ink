@@ -129,3 +129,24 @@ export async function PUT(request: Request) {
     return uploadError(error, "Could not save the profile.");
   }
 }
+
+export async function DELETE(request: Request) {
+  if (!isTrustedMutation(request)) return untrustedMutationResponse();
+  try {
+    const sessionId = await getUserSessionId(request);
+    const current = await getCandidateProfile(sessionId);
+    const saved = await saveCandidateProfile(sessionId, {
+      ...current,
+      resumeData: null,
+      resumeFileName: null,
+      resumeMimeType: null,
+      resumeText: "",
+    });
+    return Response.json({ profile: publicCandidateProfile(saved) });
+  } catch {
+    return Response.json(
+      { error: "Could not remove the resume." },
+      { status: 500 }
+    );
+  }
+}

@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -12,6 +13,9 @@ import {
 export type DropdownOption = {
   value: string;
   label: string;
+  buttonLabel?: string;
+  searchText?: string;
+  prefix?: ReactNode;
   disabled?: boolean;
 };
 
@@ -24,6 +28,8 @@ type DropdownProps = {
   name?: string;
   prefix?: ReactNode;
   placeholder?: string;
+  searchable?: boolean;
+  searchPlaceholder?: string;
   disabled?: boolean;
   className?: string;
   buttonClassName?: string;
@@ -41,6 +47,8 @@ export function Dropdown({
   name,
   prefix,
   placeholder = "Choose an option",
+  searchable = false,
+  searchPlaceholder = "Search options",
   disabled = false,
   className = "",
   buttonClassName = "",
@@ -53,13 +61,22 @@ export function Dropdown({
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [searchQuery, setSearchQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const openTimerRef = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const commitTimerRef = useRef<number | null>(null);
   const listboxId = `dropdown-${useId().replace(/:/g, "")}`;
+  const visibleOptions = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    if (!searchable || !query) return options;
+    return options.filter((option) =>
+      (option.searchText ?? option.label).toLocaleLowerCase().includes(query)
+    );
+  }, [options, searchQuery, searchable]);
 
   const clearTimers = useCallback(() => {
     if (openTimerRef.current !== null) {
@@ -79,6 +96,7 @@ export function Dropdown({
       closeTimerRef.current = window.setTimeout(() => {
         setMounted(false);
         setActiveIndex(-1);
+        setSearchQuery("");
         closeTimerRef.current = null;
         if (returnFocus) buttonRef.current?.focus();
       }, ANIMATION_MS);
@@ -90,6 +108,7 @@ export function Dropdown({
     (initialIndex?: number) => {
       if (disabled) return;
       clearTimers();
+      setSearchQuery("");
       const selectedIndex = options.findIndex(
         (option) => option.value === selectedValue && !option.disabled
       );
@@ -121,6 +140,11 @@ export function Dropdown({
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [closeDropdown, mounted]);
+
+  useEffect(() => {
+    if (!open || !searchable) return;
+    searchInputRef.current?.focus();
+  }, [open, searchable]);
 
   useEffect(
     () => () => {
@@ -171,9 +195,10 @@ export function Dropdown({
       return;
     }
     let next = activeIndex;
-    for (let count = 0; count < options.length; count++) {
-      next = (next + direction + options.length) % options.length;
-      if (!options[next]?.disabled) {
+    for (let count = 0; count < visibleOptions.length; count++) {
+      next =
+        (next + direction + visibleOptions.length) % visibleOptions.length;
+      if (!visibleOptions[next]?.disabled) {
         setActiveIndex(next);
         document.getElementById(`${listboxId}-option-${next}`)?.focus();
         break;
@@ -213,8 +238,10 @@ export function Dropdown({
         className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-sand bg-surface px-3.5 py-2.5 text-left text-sm font-medium text-espresso outline-none transition-colors hover:border-terracotta focus:border-terracotta disabled:cursor-not-allowed disabled:opacity-50 ${buttonClassName}`}
       >
         <span className="flex min-w-0 items-center gap-2">
-          {prefix}
-          <span className="truncate">{selectedOption?.label ?? placeholder}</span>
+          {selectedOption?.prefix ?? prefix}
+          <span className="truncate">
+            {selectedOption?.buttonLabel ?? selectedOption?.label ?? placeholder}
+          </span>
         </span>
         <svg
           viewBox="0 0 20 20"
@@ -234,16 +261,54 @@ export function Dropdown({
 
       {mounted && (
         <div
-          id={listboxId}
-          role="listbox"
-          aria-label={ariaLabel}
-          className={`absolute top-full left-0 z-40 mt-2 max-h-72 min-w-full transform-gpu overflow-y-auto rounded-2xl border border-sand bg-surface p-1.5 shadow-[0_18px_50px_rgba(78,47,36,0.18)] transition-[opacity,transform] duration-[160ms] ease-out will-change-[transform,opacity] [backface-visibility:hidden] motion-reduce:transition-none ${
+          className={`absolute top-full left-0 z-40 mt-2 min-w-full transform-gpu overflow-hidden rounded-2xl border border-sand bg-surface p-1.5 shadow-[0_18px_50px_rgba(78,47,36,0.18)] transition-[opacity,transform] duration-[160ms] ease-out will-change-[transform,opacity] [backface-visibility:hidden] motion-reduce:transition-none ${
             open
               ? "translate-y-0 opacity-100"
               : "pointer-events-none -translate-y-1 opacity-0"
           } ${menuClassName}`}
         >
-          {options.map((option, index) => {
+          {searchable && (
+            <div className="border-b border-sand/60 p-1.5">
+              <input
+                ref={searchInputRef}
+                type="search"
+                aria-label={`${ariaLabel} search`}
+                value={searchQuery}
+                onChange={(event) => {
+                  const nextQuery = event.currentTarget.value;
+                  const normalizedQuery = nextQuery.trim().toLocaleLowerCase();
+                  const nextOptions = normalizedQuery
+                    ? options.filter((option) =>
+                        (option.searchText ?? option.label)
+                          .toLocaleLowerCase()
+                          .includes(normalizedQuery)
+                      )
+                    : options;
+                  setSearchQuery(nextQuery);
+                  setActiveIndex(
+                    nextOptions.findIndex((option) => !option.disabled)
+                  );
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    moveActive(event.key === "ArrowDown" ? 1 : -1);
+                  }
+                }}
+                placeholder={searchPlaceholder}
+                className="w-full rounded-lg border border-sand bg-cream/45 px-3 py-2 text-sm text-espresso outline-none placeholder:text-espresso/40 focus:border-terracotta"
+              />
+            </div>
+          )}
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-label={ariaLabel}
+            className={`max-h-72 overflow-y-auto ${
+              open ? "opacity-100" : "opacity-0"
+            }`}
+          >
+          {visibleOptions.map((option, index) => {
             const selected = option.value === selectedValue;
             return (
               <button
@@ -272,7 +337,10 @@ export function Dropdown({
                     : "text-espresso/75 hover:bg-sand/30"
                 }`}
               >
-                <span>{option.label}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  {option.prefix}
+                  <span>{option.label}</span>
+                </span>
                 {selected && (
                   <span aria-hidden="true" className="text-sienna">
                     ✓
@@ -281,6 +349,12 @@ export function Dropdown({
               </button>
             );
           })}
+          {visibleOptions.length === 0 && (
+            <p className="px-3 py-4 text-center text-sm text-espresso/55">
+              No matching options
+            </p>
+          )}
+          </div>
         </div>
       )}
     </div>

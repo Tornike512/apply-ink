@@ -73,6 +73,7 @@ export function RegistrationWizard() {
   const [furthestStep, setFurthestStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [prefilling, setPrefilling] = useState(false);
+  const [removingResume, setRemovingResume] = useState(false);
   const [resumeReadError, setResumeReadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [answerCount, setAnswerCount] = useState<number | null>(null);
@@ -80,7 +81,11 @@ export function RegistrationWizard() {
   const [selectedResumeName, setSelectedResumeName] = useState<string | null>(
     null
   );
+  const [approvedResumeName, setApprovedResumeName] = useState<string | null>(
+    null
+  );
   const phone = editedPhone ?? profile.phone;
+  const visibleResumeName = approvedResumeName ?? profile.resumeFileName;
   const visibleAnswerCount = answerCount ?? profile.applicationAnswerCount;
   const coverage = Math.round(
     (visibleAnswerCount / profile.applicationAnswerTotal) * 100
@@ -109,8 +114,7 @@ export function RegistrationWizard() {
 
     if (
       step === 1 &&
-      !profile.resumeFileName &&
-      !resumeInputRef.current?.files?.length
+      !visibleResumeName
     ) {
       setMessage("Upload your CV so we can fill the supported fields.");
       resumeUploadButtonRef.current?.focus();
@@ -186,6 +190,7 @@ export function RegistrationWizard() {
         }
       }
       setAnswerCount(countFormAnswers(form));
+      setApprovedResumeName(resume?.name ?? profile.resumeFileName);
       setMessage(
         appliedCount > 0
           ? `${appliedCount} answer${appliedCount === 1 ? "" : "s"} filled from your CV. Review them before continuing.`
@@ -199,8 +204,54 @@ export function RegistrationWizard() {
           : "Could not read answers from this CV.";
       setResumeReadError(nextMessage);
       setMessage(nextMessage);
+      if (resume) {
+        if (resumeInputRef.current) resumeInputRef.current.value = "";
+        setSelectedResumeName(null);
+        setApprovedResumeName(null);
+      }
     } finally {
       if (prefillRequestRef.current === requestId) setPrefilling(false);
+    }
+  }
+
+  async function removeResume() {
+    const removingSelectedResume = Boolean(selectedResumeName);
+    prefillRequestRef.current += 1;
+    if (resumeInputRef.current) resumeInputRef.current.value = "";
+    setSelectedResumeName(null);
+    setApprovedResumeName(null);
+    setResumeReadError(null);
+
+    if (removingSelectedResume || !profile.resumeFileName) {
+      setPrefilling(false);
+      setMessage(
+        profile.resumeFileName
+          ? "Replacement removed. Your previously approved CV is still saved."
+          : "CV removed. Upload another CV when you are ready."
+      );
+      return;
+    }
+
+    setRemovingResume(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/profile", {
+        method: "DELETE",
+        headers: { "x-apply-ink": "1" },
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        profile?: CandidateProfile;
+        error?: string;
+      };
+      if (!response.ok || !data.profile) {
+        throw new Error(data.error ?? "Could not remove the CV.");
+      }
+      queryClient.setQueryData(CANDIDATE_PROFILE_KEY, data.profile);
+      setMessage("CV removed. Upload another CV when you are ready.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not remove the CV.");
+    } finally {
+      setRemovingResume(false);
     }
   }
 
@@ -443,11 +494,59 @@ export function RegistrationWizard() {
                         const resume = event.currentTarget.files?.[0];
                         if (resume) {
                           setSelectedResumeName(resume.name);
+                          setApprovedResumeName(null);
                           void prefillFromResume(resume);
                         }
                       }}
                       className="sr-only"
                     />
+                    {visibleResumeName && !prefilling ? (
+                      <div
+                        data-resume-approved
+                        className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-success/35 bg-success/8 p-4"
+                      >
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success text-white">
+                          <svg
+                            viewBox="0 0 20 20"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            aria-hidden="true"
+                          >
+                            <path d="m4.5 10 3.4 3.4 7.6-7.6" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-bold text-success">
+                            CV approved
+                          </span>
+                          <span className="block truncate text-xs text-espresso/60">
+                            {visibleResumeName} · readable and ready to use
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <button
+                            ref={resumeUploadButtonRef}
+                            type="button"
+                            onClick={() => resumeInputRef.current?.click()}
+                            disabled={removingResume}
+                            className="rounded-lg border border-success/35 bg-surface px-3 py-2 text-xs font-bold text-espresso transition-colors hover:border-success disabled:opacity-50"
+                          >
+                            Replace CV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void removeResume()}
+                            disabled={removingResume}
+                            className="rounded-lg px-3 py-2 text-xs font-bold text-sienna transition-colors hover:bg-sienna/8 disabled:opacity-50"
+                          >
+                            {removingResume ? "Removing..." : "Remove"}
+                          </button>
+                        </span>
+                      </div>
+                    ) : (
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <button
                         ref={resumeUploadButtonRef}
@@ -458,16 +557,14 @@ export function RegistrationWizard() {
                       >
                         {prefilling
                           ? "Reading your CV..."
-                          : profile.resumeFileName
-                            ? "Replace CV and refill form"
-                            : "Upload CV and fill my form"}
+                          : "Upload CV and fill my form"}
                       </button>
                       <span className="text-xs leading-5 text-espresso/55">
                         {selectedResumeName ??
-                          profile.resumeFileName ??
                           "PDF, DOC, DOCX, RTF, ODT, or TXT; maximum 10 MB"}
                       </span>
                     </div>
+                    )}
                     {profile.resumeFileName && !selectedResumeName && (
                       <button
                         type="button"
