@@ -9,6 +9,8 @@ import {
   authenticateUser,
   createPasswordResetToken,
   createUser,
+  findOrCreateGoogleUser,
+  passwordValidationError,
   resetPasswordWithToken,
 } from "../src/lib/user-store";
 
@@ -31,6 +33,28 @@ async function main() {
     const goodLogin = await authenticateUser(email, password);
     const badLogin = await authenticateUser(email, `${password}-wrong`);
     if (!goodLogin || badLogin) throw new Error("Credential verification failed.");
+    if (passwordValidationError("abc12345") !== null) {
+      throw new Error("An eight-character password was rejected.");
+    }
+    if (!passwordValidationError("abc1234")) {
+      throw new Error("A seven-character password was accepted.");
+    }
+
+    const googleLink = await findOrCreateGoogleUser({
+      subject: `google-${suffix}`,
+      email,
+      firstName: "Different",
+      lastName: "Name",
+    });
+    const repeatedGoogleLink = await findOrCreateGoogleUser({
+      subject: `google-${suffix}`,
+      email,
+      firstName: "Different",
+      lastName: "Name",
+    });
+    if (googleLink.created || repeatedGoogleLink.user.id !== user.id) {
+      throw new Error("Google did not safely link the existing verified email.");
+    }
 
     const token = await createAuthToken(user);
     const request = new Request("http://localhost:3000/api/auth/me", {
@@ -60,6 +84,8 @@ async function main() {
         jwtCookieSession: true,
         resetOneTimeUse: true,
         resetInvalidatesSessions: true,
+        eightCharacterMinimum: true,
+        googleAccountLinking: true,
       })
     );
   } finally {

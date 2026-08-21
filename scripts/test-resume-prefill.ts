@@ -7,6 +7,7 @@ Email: jamie@example.test
 Phone: +1 555 010 2200
 Location: Tbilisi, Georgia
 https://www.linkedin.com/in/jamie-candidate
+github.com/jamie-candidate
 https://jamie.example.test
 
 Product engineer at a venture-backed startup. Built production software with
@@ -20,6 +21,7 @@ workflow.`,
     phone: "+1 555 010 2200",
     location: "Tbilisi, Georgia",
     linkedinUrl: "https://www.linkedin.com/in/jamie-candidate",
+    githubUrl: "https://github.com/jamie-candidate",
     portfolioUrl: "https://jamie.example.test",
     medicalExperience: "yes",
     startupExperience: "yes",
@@ -32,6 +34,9 @@ workflow.`,
     if (result.answers[field as keyof typeof result.answers] !== value) {
       throw new Error(`Expected ${field} to equal ${value}.`);
     }
+  }
+  if (!result.answers.coverLetter || !result.answers.skills.includes("TypeScript")) {
+    throw new Error("The fallback did not create a grounded introduction and skills list.");
   }
   if (
     result.answers.yearsProductExperience ||
@@ -47,6 +52,8 @@ workflow.`,
       evidenceOnlyFallback: true,
       contactPrefill: true,
       experiencePrefill: true,
+      defaultIntroduction: true,
+      cvSkillsPrefill: true,
       unsupportedAnswersStayBlank: true,
     })
   );

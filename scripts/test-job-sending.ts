@@ -135,8 +135,7 @@ function memoryProfile(
     ...EMPTY_CANDIDATE_PROFILE,
     applicationAnswers: {
       ...EMPTY_APPLICATION_ANSWERS,
-      expectedAnnualSalary: "120000",
-      salaryCurrency: "USD",
+      workAuthorizationCountries: ["ge", "us"],
       needsSponsorship: "no",
     },
     firstName: "Jamie",
@@ -146,6 +145,8 @@ function memoryProfile(
     location: "Tbilisi, Georgia",
     linkedinUrl: "https://www.linkedin.com/in/jamie-candidate",
     portfolioUrl: "https://jamie.example.test",
+    githubUrl: "https://github.com/jamie-candidate",
+    skills: ["TypeScript", "React"],
     coverLetter: "I am interested in this role.",
     resumeFileName: "Jamie_Candidate_Resume.txt",
     cvUploaded: true,

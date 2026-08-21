@@ -32,6 +32,40 @@ async function main() {
   let userId: string | null = null;
 
   try {
+    const googleStart = await fetch(
+      `${ORIGIN}/api/auth/google?intent=login&next=/dashboard/messages`,
+      { redirect: "manual" }
+    );
+    const googleLocation = googleStart.headers.get("location") ?? "";
+    const googleCookies = googleStart.headers.get("set-cookie") ?? "";
+    if (googleStart.status < 300 || googleStart.status >= 400) {
+      throw new Error("Google sign-in did not start with a redirect.");
+    }
+    if (/accounts\.google\.com/.test(googleLocation)) {
+      if (
+        !googleCookies.includes("apply-ink-google-state=") ||
+        !googleCookies.includes("apply-ink-google-nonce=") ||
+        !/HttpOnly/i.test(googleCookies)
+      ) {
+        throw new Error("Google sign-in did not set protected state and nonce cookies.");
+      }
+    } else if (!/error=google_not_configured/.test(googleLocation)) {
+      throw new Error("Unconfigured Google sign-in did not return a safe fallback.");
+    }
+    const forgedGoogleCallback = await fetch(
+      `${ORIGIN}/api/auth/google/callback?code=fake&state=forged`,
+      { redirect: "manual" }
+    );
+    if (
+      forgedGoogleCallback.status < 300 ||
+      forgedGoogleCallback.status >= 400 ||
+      !/error=google_cancelled/.test(
+        forgedGoogleCallback.headers.get("location") ?? ""
+      )
+    ) {
+      throw new Error("Google callback accepted missing or forged state.");
+    }
+
     const user = await createUser({
       email,
       firstName: "API",
@@ -178,6 +212,8 @@ async function main() {
     console.log(
       JSON.stringify({
         loginRoute: true,
+        googleStartRoute: true,
+        forgedGoogleCallbackRejected: true,
         httpOnlyCookie: true,
         authenticatedPage: true,
         guestRedirect: true,

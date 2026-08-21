@@ -49,6 +49,19 @@ try {
     firstName: "Postgres",
     lastName: "Test",
     email: "postgres-test@example.com",
+    linkedinUrl: "https://linkedin.com/in/postgres-test",
+    portfolioUrl: "https://postgres-test.example.com",
+    githubUrl: "https://github.com/postgres-test",
+    skills: ["TypeScript", "React"],
+    skillsInventoryFileName: "Profile skills",
+    skillsInventoryJson: JSON.stringify({
+      skills: ["TypeScript", "React"].map((name) => ({ name })),
+    }),
+    applicationAnswers: {
+      ...empty.applicationAnswers,
+      workAuthorizationCountries: ["ge", "us"],
+      gender: "prefer_not_to_say",
+    },
     resumeData,
     resumeFileName: "resume.txt",
     resumeMimeType: "text/plain",
@@ -58,6 +71,9 @@ try {
   assert.equal(saved.cvUploaded, true);
   assert.equal(saved.complete, true);
   assert.deepEqual(saved.resumeData, resumeData);
+  assert.equal(saved.githubUrl, "https://github.com/postgres-test");
+  assert.deepEqual(saved.skills, ["TypeScript", "React"]);
+  assert.deepEqual(saved.applicationAnswers.workAuthorizationCountries, ["ge", "us"]);
 
   const application = await saveApplication({
     sessionId,

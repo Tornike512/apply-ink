@@ -6,7 +6,10 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 2. Set `DATABASE_URL` to a PostgreSQL database.
 3. Set a random `AUTH_SECRET` with at least 32 characters for production. In
    development, Apply Ink can create and persist one in PostgreSQL automatically.
-4. Create/check the schema, then run the development server:
+4. To enable Google sign-in, create a Google OAuth Web client and set
+   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Add
+   `https://your-domain/api/auth/google/callback` as an authorized redirect URI.
+5. Create/check the schema, then run the development server:
 
 ```bash
 npm run db:check
@@ -29,16 +32,17 @@ also marked Secure.
 3. Upload your master CV and answer as many reusable employer questions as you
    can. PDF, DOC, DOCX, RTF, ODT, and TXT are parsed with document libraries
    before the CV is accepted.
-4. Optionally upload a master skills inventory JSON. Entries needing confirmation
-   or context are excluded from CV tailoring.
+4. Review the skills found in your CV and add or remove skills. Apply Ink uses only
+   those approved skills when tailoring a CV to a job description.
 5. Choose **Apply with AI** on a job. Apply Ink rewrites and validates a selectable,
    one-page PDF in the layout of the reference CV before routing the application.
 6. Apply Ink opens a separate Chrome profile and fills the fields it recognizes.
 7. Review the form, complete CAPTCHA or custom questions, and submit it yourself.
 8. Return to **Messages** and choose **I submitted it**.
 
-Registration stores 15 common answers covering compensation, location, work
-authorization, availability, and experience. The landing page shows answer
+Registration stores reusable answers covering work authorization, availability,
+experience, and optional employer demographics. Salary is selected later through
+job filters. Demographics are never inferred and never used for matching. The landing page shows answer
 coverage: more verified answers let assisted applications fill more fields without
 guessing. Automatic final submission, required privacy notices, and optional
 talent-pool consent are separate opt-ins and can be changed later in **Settings**.

@@ -9,6 +9,7 @@ const npmCli = process.env.npm_execpath;
 const childEnvironment = {
   ...process.env,
   APPLY_INK_TEST_ORIGIN: TEST_ORIGIN,
+  APPLY_INK_NEXT_DIST_DIR: ".next-pgtest",
   NEXT_TELEMETRY_DISABLED: "1",
 };
 
@@ -157,6 +158,8 @@ async function main() {
     ["PostgreSQL schema check", () => runNpmScript("db:check")],
     ["PostgreSQL integration tests", () => runNpmScript("db:test")],
     ["Authentication tests", () => runNpmScript("auth:test")],
+    ["Google authentication tests", () => runNpmScript("google-auth:test")],
+    ["Onboarding field tests", () => runNpmScript("onboarding-fields:test")],
     ["Job sending tests", () => runNpmScript("job-sending:test")],
     ["Production build", () => runNpmScript("build")],
     ["Temporary application server", () => startApplication()],

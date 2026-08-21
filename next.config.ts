@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.APPLY_INK_NEXT_DIST_DIR?.trim() || ".next",
   serverExternalPackages: [
     "@napi-rs/canvas",
     "better-sqlite3",

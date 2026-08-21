@@ -92,7 +92,23 @@ async function main() {
       }
     });
     await page.goto(`${ORIGIN}/register`, { waitUntil: "networkidle" });
-    await page.getByRole("link", { name: "Register", exact: true }).click();
+    const automationDialog = page.getByRole("dialog", {
+      name: "Why these questions matter",
+    });
+    await automationDialog.waitFor();
+    if (
+      !(await automationDialog.textContent())?.includes("fewer interruptions") ||
+      !(await automationDialog.textContent())?.includes("Messages")
+    ) {
+      throw new Error("Registration automation explanation is missing.");
+    }
+    await automationDialog
+      .getByRole("button", { name: "Continue registration" })
+      .click();
+    await page.getByText("Continue with Google", { exact: true }).waitFor();
+    await page
+      .getByRole("link", { name: /^(?:Register|Upload resume)$/ })
+      .click();
     await page.waitForURL("**/register#register");
     const formTop = await page.locator("#register").evaluate((section) =>
       section.getBoundingClientRect().top
@@ -164,8 +180,13 @@ async function main() {
             phone: "+995555010100",
             location: "Tbilisi, Georgia",
             linkedinUrl: "https://www.linkedin.com/in/registration-test",
+            githubUrl: "https://github.com/registration-test",
+            portfolioUrl: "https://registration-test.example.com",
+            coverLetter: "I build reliable product software with TypeScript and React.",
+            skills: ["TypeScript", "React", "PostgreSQL"],
             aiProductionExperience: "yes",
             typescriptExperience: "yes",
+            aiFrameworksExperience: "yes",
           },
           filledFields: [
             "firstName",
@@ -173,8 +194,13 @@ async function main() {
             "phone",
             "location",
             "linkedinUrl",
+            "githubUrl",
+            "portfolioUrl",
+            "coverLetter",
+            "skills",
             "aiProductionExperience",
             "typescriptExperience",
+            "aiFrameworksExperience",
           ],
         }),
       });
@@ -236,6 +262,21 @@ async function main() {
     ) {
       throw new Error("CV contact details did not fill the step-two form.");
     }
+    const prefilledGithub = await page.locator('input[name="githubUrl"]').inputValue();
+    const prefilledIntroduction = await page
+      .locator('textarea[name="coverLetter"]')
+      .inputValue();
+    const prefilledSkillsValue = await page.locator('input[name="skills"]').inputValue();
+    const prefilledSkills = JSON.parse(prefilledSkillsValue) as string[];
+    if (
+      prefilledGithub !== "https://github.com/registration-test" ||
+      !prefilledIntroduction.includes("TypeScript") ||
+      !prefilledSkills.includes("PostgreSQL")
+    ) {
+      throw new Error(
+        `CV links, introduction, or skills were not prefilled: GitHub=${prefilledGithub}, introduction=${prefilledIntroduction}, skills=${prefilledSkillsValue}.`
+      );
+    }
     const registrationCardHeights = await page.evaluate(() => {
       const steps = document.querySelector<HTMLElement>(
         "[data-registration-steps]"
@@ -258,11 +299,28 @@ async function main() {
     }
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Preferences", exact: true }).waitFor();
-    const sponsorshipQuestion = "Do you need visa sponsorship?";
+    if (
+      (await page.getByText("Expected annual salary", { exact: true }).count()) ||
+      (await page.getByText("Preferred work location", { exact: true }).count())
+    ) {
+      throw new Error("Removed compensation or preferred-location fields remain.");
+    }
+    const workCountries = "Countries where you can work without sponsorship";
+    await page.getByRole("combobox", { name: workCountries }).click();
+    const workCountrySearch = page.getByRole("searchbox", {
+      name: `${workCountries} search`,
+    });
+    await workCountrySearch.fill("Georgia");
+    await page
+      .getByRole("listbox", { name: workCountries })
+      .getByRole("option", { name: /Georgia/ })
+      .click();
+    await page.getByRole("button", { name: "Done" }).click();
+    const sponsorshipQuestion = "Visa sponsorship outside selected countries";
     await page.getByRole("combobox", { name: sponsorshipQuestion }).click();
     await page
       .getByRole("listbox", { name: sponsorshipQuestion })
-      .getByRole("option", { name: "No", exact: true })
+      .getByRole("option", { name: /No.*selected countries only/ })
       .click();
     if (
       (await page.locator('input[name="needsSponsorship"]').inputValue()) !== "no"
@@ -277,14 +335,23 @@ async function main() {
     const aiProductionAnswer = await page
       .locator('input[name="aiProductionExperience"]')
       .inputValue();
+    const aiFrameworksAnswer = await page
+      .locator('input[name="aiFrameworksExperience"]')
+      .inputValue();
     if (
       typescriptAnswer !== "yes" ||
-      aiProductionAnswer !== "yes"
+      aiProductionAnswer !== "yes" ||
+      aiFrameworksAnswer !== "yes"
     ) {
       throw new Error(
         `CV answers were not applied to the dropdown form: TypeScript=${typescriptAnswer}, AI=${aiProductionAnswer}.`
       );
     }
+    await page.getByRole("combobox", { name: "Gender" }).click();
+    await page
+      .getByRole("listbox", { name: "Gender" })
+      .getByRole("option", { name: "Prefer not to say" })
+      .click();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Permissions", exact: true }).waitFor();
     await page.getByRole("button", { name: "Create account and find jobs" }).click();
@@ -312,6 +379,41 @@ async function main() {
       session.documentCookie.includes("apply-ink-auth")
     ) {
       throw new Error("Registration did not create an HTTP-only account session.");
+    }
+    const storedOnboarding = await postgresQuery<{
+      github_url: string;
+      cover_letter: string;
+      skills_inventory_json: { skills?: Array<{ name?: string }> } | string;
+      application_answers: {
+        workAuthorizationCountries?: string[];
+        gender?: string;
+        typescriptExperience?: string;
+        aiFrameworksExperience?: string;
+      } | string;
+    }>(
+      `SELECT github_url, cover_letter, skills_inventory_json, application_answers
+       FROM candidate_profiles WHERE session_id = $1`,
+      [`user:${userId}`]
+    );
+    const onboardingRow = storedOnboarding.rows[0];
+    const storedSkills =
+      typeof onboardingRow.skills_inventory_json === "string"
+        ? JSON.parse(onboardingRow.skills_inventory_json)
+        : onboardingRow.skills_inventory_json;
+    const storedAnswers =
+      typeof onboardingRow.application_answers === "string"
+        ? JSON.parse(onboardingRow.application_answers)
+        : onboardingRow.application_answers;
+    if (
+      onboardingRow.github_url !== "https://github.com/registration-test" ||
+      !onboardingRow.cover_letter.includes("TypeScript") ||
+      !storedSkills.skills?.some((skill: { name?: string }) => skill.name === "PostgreSQL") ||
+      !storedAnswers.workAuthorizationCountries?.includes("ge") ||
+      storedAnswers.gender !== "prefer_not_to_say" ||
+      storedAnswers.typescriptExperience !== "yes" ||
+      storedAnswers.aiFrameworksExperience !== "yes"
+    ) {
+      throw new Error("New registration answers were not persisted in PostgreSQL.");
     }
     if (duplicateKeyErrors.length > 0) {
       throw new Error(`Dashboard rendered duplicate keys: ${duplicateKeyErrors[0]}`);
@@ -535,6 +637,9 @@ async function main() {
         approvedResumeState: true,
         resumeReplaceAndRemove: true,
         cvAnswerPrefill: true,
+        introductionSkillsAndLinksStored: true,
+        workAuthorizationStored: true,
+        optionalDemographicsStored: true,
         httpOnlyInBrowser: true,
         jobsRoute: true,
         duplicateClientKeysPrevented: true,
