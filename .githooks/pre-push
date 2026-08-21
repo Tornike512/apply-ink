@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+echo "[pre-push] Running the complete local test gate before push."
+npm run pre-push:test

@@ -14,6 +14,11 @@ const client = new pg.Client({ connectionString });
 await client.connect();
 try {
   await client.query(schema);
+  await client.query(`
+    INSERT INTO job_store (id, jobs, sources, refreshed_at)
+    VALUES (1, '[]'::jsonb, '{}'::jsonb, 0)
+    ON CONFLICT (id) DO NOTHING
+  `);
   const result = await client.query(`
     SELECT
       (SELECT COUNT(*) FROM candidate_profiles) AS profiles,

@@ -80,6 +80,21 @@ npm run auth:registration-test
 For production, set `DATABASE_URL` only in the hosting provider's server-side
 environment. Managed providers commonly require `sslmode=require` in the URL.
 
+## Local pre-push tests
+
+`npm install` configures the tracked `.githooks/pre-push` hook. Before every push,
+it runs the static checks, focused tests, PostgreSQL integration tests, production
+build, and browser/API tests that previously ran in GitHub Actions. A failure
+blocks the push.
+
+Run the same gate without pushing:
+
+```bash
+npm run pre-push:test
+```
+
+See [PRE_PUSH_TESTS.md](./PRE_PUSH_TESTS.md) for the individual checks and setup.
+
 ## Official ATS connections
 
 Copy `.env.example` values into `.env.local` to configure employer-authorized
