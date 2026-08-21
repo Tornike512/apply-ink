@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MarketingFaq } from "./marketing-faq";
 import styles from "./marketing-landing.module.css";
 
 const companies = [
@@ -89,6 +90,100 @@ function ArrowIcon() {
   );
 }
 
+function UploadFileIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M6.5 2.8h7.2l3.8 3.8v14.6h-11z" strokeLinejoin="round" />
+      <path d="M13.7 2.8v3.8h3.8M9 14l3-3 3 3M12 11v6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SparkleIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M12 2.8c.7 5.4 3.4 8.1 8.8 8.8-5.4.7-8.1 3.4-8.8 8.8-.7-5.4-3.4-8.1-8.8-8.8C8.6 10.9 11.3 8.2 12 2.8Z" strokeLinejoin="round" />
+      <path d="M19.2 2.8c.2 1.7 1 2.5 2.7 2.7-1.7.2-2.5 1-2.7 2.7-.2-1.7-1-2.5-2.7-2.7 1.7-.2 2.5-1 2.7-2.7Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SendIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="m3.1 10.8 17.8-7.3-5.6 17-4-7.1z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m11.3 13.4 4-4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function UploadTrayIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M12 15V3m0 0L7.8 7.2M12 3l4.2 4.2M4 14.5v5h16v-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function BriefcaseIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M3.5 7.5h17v12h-17zM9 7.5V5h6v2.5M3.5 12h17M10 12v2h4v-2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StepIcon({ index }: { index: number }) {
+  if (index === 0) return <UploadFileIcon />;
+  if (index === 1) return <SparkleIcon />;
+  return <SendIcon />;
+}
+
 export function MarketingLanding() {
   return (
     <main className="min-h-screen overflow-hidden bg-cream pt-18">
@@ -100,16 +195,13 @@ export function MarketingLanding() {
         <div className="absolute top-4 right-[-8rem] size-[32rem] rounded-full bg-terracotta/20 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12">
+      <div className="relative mx-auto w-full max-w-[1440px] px-5 sm:px-8 lg:px-12">
         <section className="grid min-h-[calc(100vh-4.5rem)] grid-cols-1 items-center gap-12 py-14 lg:grid-cols-[1.03fr_0.97fr] lg:gap-16 lg:py-20">
           <div className="min-w-0">
-            <span className="inline-flex items-center gap-2 rounded-full border border-sienna/20 bg-surface/75 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-sienna shadow-sm backdrop-blur sm:tracking-[0.16em]">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
-                <span className="relative inline-flex size-2 rounded-full bg-success" />
-              </span>
-              For global remote job seekers
-            </span>
+            <p className="flex items-center gap-3 text-sm font-semibold text-sienna">
+              <span className="h-px w-10 bg-terracotta" aria-hidden="true" />
+              Remote work, without the repetitive forms
+            </p>
 
             <h1 className="mt-6 max-w-3xl text-[2.55rem] leading-[0.98] font-bold tracking-[-0.055em] text-espresso sm:text-6xl lg:text-[4.45rem]">
               One resume.
@@ -276,24 +368,47 @@ export function MarketingLanding() {
           </div>
         </section>
 
-        <section id="how-it-works" className="scroll-mt-28 py-24">
-          <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-terracotta">How it works</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-[-0.035em] text-espresso sm:text-5xl">
+        <section id="how-it-works" className="scroll-mt-28 py-24 lg:py-28">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
+              How it works
+            </p>
+            <h2 className={`${styles.editorialHeading} mt-5 text-4xl leading-[1.02] tracking-[-0.045em] text-espresso sm:text-5xl lg:text-6xl`}>
               From resume to applications in three simple steps.
             </h2>
           </div>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {steps.map((step) => (
+          <div className={`${styles.stepsStage} mt-14 lg:mt-8`}>
+            <span className={`${styles.stepConnector} ${styles.stepConnectorOne}`} aria-hidden="true" />
+            <span className={`${styles.stepConnector} ${styles.stepConnectorTwo}`} aria-hidden="true" />
+
+            {steps.map((step, index) => (
               <article
                 key={step.number}
-                className="group relative overflow-hidden rounded-3xl border border-sand bg-surface/70 p-7 transition-all hover:-translate-y-1 hover:bg-surface hover:shadow-[0_18px_55px_rgba(78,47,36,0.09)]"
+                className={`${styles.stepCard} ${
+                  index === 0
+                    ? styles.stepCardOne
+                    : index === 1
+                      ? styles.stepCardTwo
+                      : styles.stepCardThree
+                }`}
               >
-                <span className="text-xs font-bold uppercase tracking-[0.15em] text-terracotta">Step {step.number}</span>
-                <h3 className="mt-12 text-xl font-bold text-espresso">{step.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-espresso/60">{step.description}</p>
-                <span className="absolute top-6 right-6 text-6xl font-bold tracking-tighter text-sand/45 transition-colors group-hover:text-terracotta/18" aria-hidden="true">
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-terracotta/14 text-terracotta sm:size-16">
+                  <StepIcon index={index} />
+                </span>
+                <div className="relative z-10 min-w-0 pt-1">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-terracotta">
+                    Step {step.number}
+                  </p>
+                  <span className="mt-3 block h-px w-6 bg-terracotta" aria-hidden="true" />
+                  <h3 className={`${styles.editorialHeading} mt-5 text-2xl leading-tight text-espresso`}>
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 max-w-64 text-sm leading-7 text-espresso/58">
+                    {step.description}
+                  </p>
+                </div>
+                <span className={`${styles.editorialHeading} absolute top-5 right-6 text-7xl leading-none text-terracotta/14`} aria-hidden="true">
                   {step.number}
                 </span>
               </article>
@@ -344,49 +459,181 @@ export function MarketingLanding() {
           </div>
         </section>
 
-        <section className="py-24">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-terracotta">You stay in control</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-[-0.035em] text-espresso sm:text-5xl">
-              Fast does not mean careless.
+        <section className={`${styles.controlSection} relative my-24 overflow-hidden rounded-[1.75rem] border border-sand/80 px-6 py-12 shadow-[0_24px_80px_rgba(78,47,36,0.08)] sm:px-10 sm:py-16 lg:px-16 lg:py-18`}>
+          <div className={styles.controlArcs} aria-hidden="true" />
+          <div className={styles.controlDots} aria-hidden="true" />
+
+          <div className="relative z-10 max-w-3xl">
+            <p className="flex items-center gap-4 text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
+              <span className="h-px w-12 bg-terracotta" aria-hidden="true" />
+              You stay in control
+            </p>
+            <h2 className={`${styles.editorialHeading} mt-7 text-5xl leading-[0.94] tracking-[-0.05em] text-espresso sm:text-6xl lg:text-7xl`}>
+              Fast does not<br className="hidden sm:block" /> mean careless<span className="text-terracotta">.</span>
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-espresso/60">
-              Your applications use facts from your resume and answers you approved. If something is missing, Apply Ink asks instead of guessing.
+            <p className="mt-7 max-w-2xl text-base leading-8 text-espresso/62 sm:text-lg">
+              Your applications use facts from your resume and answers you
+              approved. If something is missing, Apply Ink asks instead of guessing.
             </p>
           </div>
 
-          <div className="mx-auto mt-10 grid max-w-5xl gap-4 md:grid-cols-3">
+          <div className="relative z-10 mt-12 grid gap-5 md:grid-cols-3">
             {[
               ["Your real experience", "Resume changes stay based on skills and work you actually have."],
               ["Your approved answers", "Common form questions use the choices saved in your profile."],
               ["Your final rules", "You choose when Apply Ink can submit and when it must pause."],
             ].map(([title, description]) => (
-              <article key={title} className="rounded-3xl border border-sand bg-surface/65 p-6 text-center">
-                <span className="mx-auto flex size-10 items-center justify-center rounded-full bg-success/10 text-success">
-                  <CheckIcon />
+              <article key={title} className={`${styles.controlCard} rounded-3xl border border-sand/90 bg-surface/88 p-7 sm:p-8`}>
+                <span className={styles.checkHalo}>
+                  <span className="flex size-12 items-center justify-center rounded-full bg-success/10 text-success">
+                    <CheckIcon />
+                  </span>
                 </span>
-                <h3 className="mt-4 text-base font-bold text-espresso">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-espresso/55">{description}</p>
+                <h3 className={`${styles.editorialHeading} mt-7 text-2xl leading-tight text-espresso`}>
+                  {title}
+                </h3>
+                <span className="mt-5 block h-px w-8 bg-terracotta/65" aria-hidden="true" />
+                <p className="mt-5 text-sm leading-7 text-espresso/58">
+                  {description}
+                </p>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="mb-14 overflow-hidden rounded-[1.75rem] border border-sand bg-terracotta/14 px-6 py-12 text-center sm:px-10 sm:py-16">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-sienna">Your next application can be easier</p>
-          <h2 className="mx-auto mt-3 max-w-2xl text-3xl font-bold tracking-[-0.035em] text-espresso sm:text-5xl">
-            Upload once. Start applying everywhere.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-espresso/60">
-            Build your profile from your resume and see the remote jobs that match you best.
-          </p>
-          <Link
-            href="/register#register"
-            className="group mt-7 inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-sienna px-7 py-3 text-sm font-bold text-cream shadow-[0_14px_35px_rgba(98,65,55,0.2)] transition-all hover:-translate-y-0.5 hover:bg-espresso"
-          >
-            Upload your resume
-            <span className="transition-transform group-hover:translate-x-1"><ArrowIcon /></span>
-          </Link>
+        <section className="grid gap-10 border-t border-sand/70 py-24 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
+          <div className="max-w-md">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-terracotta">
+              Common questions
+            </p>
+            <h2 className="mt-3 text-3xl font-bold tracking-[-0.035em] text-espresso sm:text-5xl">
+              Before you let AI apply.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-espresso/60 sm:text-base">
+              Clear answers about automation, worldwide jobs, human checks,
+              and your information.
+            </p>
+          </div>
+
+          <MarketingFaq />
+        </section>
+
+        <section className={`${styles.finalCta} relative mb-14 overflow-hidden rounded-[1.75rem] border border-sand/90 px-6 py-12 shadow-[0_26px_90px_rgba(78,47,36,0.1)] sm:px-10 sm:py-16 lg:px-16`}>
+          <div className={styles.finalDots} aria-hidden="true" />
+          <div className={styles.finalGlow} aria-hidden="true" />
+
+          <div className="relative z-10 grid items-center gap-12 lg:grid-cols-[0.88fr_1.12fr] lg:gap-10">
+            <div className="max-w-xl">
+              <p className="inline-flex items-center gap-2 rounded-full border border-sand bg-surface/55 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.13em] text-sienna">
+                <SparkleIcon className="size-4" />
+                Your next application can be easier
+              </p>
+              <h2 className="mt-7 text-4xl leading-[1.04] font-bold tracking-[-0.045em] text-espresso sm:text-5xl lg:text-6xl">
+                Upload once. Start applying everywhere.
+              </h2>
+              <p className="mt-6 max-w-lg text-base leading-8 text-espresso/60 sm:text-lg">
+                Build your profile from your resume and see the remote jobs
+                that match you best.
+              </p>
+              <Link
+                href="/register#register"
+                className="group mt-8 inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-sienna px-7 py-3 text-sm font-bold text-cream shadow-[0_16px_40px_rgba(98,65,55,0.24)] transition-all hover:-translate-y-0.5 hover:bg-espresso"
+              >
+                <UploadTrayIcon className="size-5" />
+                Upload your resume
+                <span className="transition-transform group-hover:translate-x-1">
+                  <ArrowIcon />
+                </span>
+              </Link>
+
+              <div className="mt-8 flex flex-wrap gap-2.5">
+                {["Private & secure", "Worldwide jobs", "No facts invented"].map((item) => (
+                  <span key={item} className="inline-flex items-center gap-2 rounded-full border border-sand/80 bg-surface/38 px-3 py-2 text-xs font-semibold text-espresso/62">
+                    <CheckIcon className="size-4 text-sienna" />
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <figure
+              aria-label="Resume upload becomes a complete profile and matching remote jobs"
+              className={styles.finalIllustration}
+            >
+              <svg className={styles.finalRoute} viewBox="0 0 640 500" fill="none" aria-hidden="true">
+                <path d="M35 420C8 285 123 238 232 236C335 234 377 287 472 268C557 251 615 278 603 373" stroke="currentColor" strokeWidth="1.4" strokeDasharray="5 7" />
+                <path d="m596 363 7 10 7-10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+
+              <div className={styles.resumeSheet}>
+                <div className="flex items-center gap-3">
+                  <span className="flex size-12 items-center justify-center rounded-xl bg-surface text-sienna shadow-[0_8px_22px_rgba(78,47,36,0.12)]">
+                    <UploadFileIcon className="size-6" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-bold text-espresso">Your Resume</span>
+                    <span className="mt-1 block text-xs text-espresso/45">PDF · ready</span>
+                  </span>
+                </div>
+                <div className="mt-7 space-y-2" aria-hidden="true">
+                  <span className="block h-2 rounded-full bg-sand/38" />
+                  <span className="block h-2 w-4/5 rounded-full bg-sand/28" />
+                </div>
+                {[
+                  ["Experience", "w-full", "w-4/5"],
+                  ["Skills", "w-3/4", "w-5/6"],
+                  ["Education", "w-4/5", "w-2/3"],
+                ].map(([label, firstWidth, secondWidth]) => (
+                  <div key={label} className="mt-7">
+                    <p className="text-[0.64rem] font-bold uppercase tracking-[0.08em] text-espresso/70">
+                      {label}
+                    </p>
+                    <div className="mt-3 space-y-2" aria-hidden="true">
+                      <span className={`block h-2 rounded-full bg-sand/34 ${firstWidth}`} />
+                      <span className={`block h-2 rounded-full bg-sand/24 ${secondWidth}`} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <ol className={styles.finalStepList}>
+                {[
+                  ["Upload", "Add your resume", 0],
+                  ["Build profile", "We extract key facts", 1],
+                  ["Find matches", "See worldwide roles", 2],
+                ].map(([title, description, iconIndex], index) => (
+                  <li key={String(title)} className={styles.finalStepCard}>
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sienna text-xs font-bold text-cream shadow-sm">
+                      {index + 1}
+                    </span>
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-surface text-espresso shadow-[0_8px_20px_rgba(78,47,36,0.1)]">
+                      {iconIndex === 2 ? <BriefcaseIcon className="size-5" /> : <StepIcon index={Number(iconIndex)} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold capitalize text-espresso">{title}</span>
+                      <span className="mt-1 block text-xs leading-5 text-espresso/48">{description}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+
+              <div className={styles.matchCard}>
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-terracotta/14 text-sienna">
+                  <BriefcaseIcon />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-espresso">Product Designer</span>
+                  <span className="mt-1 block text-xs text-espresso/48">Worldwide · Remote</span>
+                  <span className="mt-2 inline-flex rounded-full bg-success/10 px-2 py-1 text-[0.62rem] font-bold text-success">
+                    98% match
+                  </span>
+                </span>
+                <svg viewBox="0 0 20 24" width="18" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-espresso/35" aria-hidden="true">
+                  <path d="M3 2h14v19l-7-4-7 4z" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </figure>
+          </div>
         </section>
 
         <footer className="flex flex-col gap-4 border-t border-sand/70 py-7 text-xs text-espresso/45 sm:flex-row sm:items-center sm:justify-between">
