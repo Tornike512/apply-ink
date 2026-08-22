@@ -10,7 +10,12 @@ import { Badge } from "@/components/badge";
 import { Button } from "@/components/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Container } from "@/components/container";
-import type { AutoApplyStatus } from "@/lib/auto-apply";
+import { Dropdown } from "@/components/dropdown";
+import { MINIMUM_MATCH_OPTIONS } from "@/lib/job-filtering";
+import type { AutoApplySettings, AutoApplyStatus } from "@/lib/auto-apply";
+
+const RUN_LIMIT_OPTIONS = [1, 3, 5];
+const DEFAULT_AUTO_APPLY_MATCH = 80;
 
 type AutoApplyPanelProps = {
   status: AutoApplyStatus;
@@ -20,7 +25,7 @@ type AutoApplyPanelProps = {
   appliedCount: number;
   processedCount: number;
   totalCount: number;
-  onStart: () => void;
+  onStart: (settings: AutoApplySettings) => void;
   onStop: () => void;
   onResetUsage: () => void;
   onOpenSettings: () => void;
@@ -29,7 +34,6 @@ type AutoApplyPanelProps = {
   tailoringConfigured: boolean;
   applicationAnswerCount: number;
   applicationAnswerTotal: number;
-  autoSubmitEnabled: boolean;
   startDisabled?: boolean;
 };
 
@@ -50,15 +54,22 @@ export function AutoApplyPanel({
   tailoringConfigured,
   applicationAnswerCount,
   applicationAnswerTotal,
-  autoSubmitEnabled,
   startDisabled = false,
 }: AutoApplyPanelProps) {
   const [confirming, setConfirming] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(minMatch);
+  const [selectedRunLimit, setSelectedRunLimit] = useState(dailyLimit);
   const running = status === "running";
   const atLimit = usedToday >= dailyLimit;
   const setupBlocked =
     !cvUploaded || !profileComplete || !tailoringConfigured;
   const hasRun = status === "done" || status === "stopped" || status === "limit-reached";
+
+  function openConfirmation() {
+    setSelectedMatch(minMatch || DEFAULT_AUTO_APPLY_MATCH);
+    setSelectedRunLimit(dailyLimit);
+    setConfirming(true);
+  }
 
   const pill = running
     ? { label: "Active", variant: "success" as const, dot: "bg-success" }
@@ -149,7 +160,7 @@ export function AutoApplyPanel({
         ) : (
           <Button
             variant="primary"
-            onClick={() => setConfirming(true)}
+            onClick={openConfirmation}
             disabled={atLimit || startDisabled || setupBlocked}
             className="rounded-xl py-3 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -191,14 +202,40 @@ export function AutoApplyPanel({
       <ConfirmDialog
         open={confirming}
         title="Start applying?"
-        description={`Apply Ink will prepare job-specific resumes for matches at or above ${minMatch}%, up to ${dailyLimit} applications today. ${autoSubmitEnabled ? "Complete applications on supported job sites may submit automatically." : "Automatic final submission is off in Settings."} Applications with a CAPTCHA or missing answer will appear in Messages.`}
+        description="Choose how selective this run should be. Applications that need your attention will appear in Messages."
         confirmLabel="Start applications"
         onConfirm={() => {
           setConfirming(false);
-          onStart();
+          onStart({
+            minMatch: selectedMatch,
+            runLimit: selectedRunLimit,
+            autoSubmit: true,
+          });
         }}
         onCancel={() => setConfirming(false)}
-      />
+      >
+        <Dropdown
+          ariaLabel="Minimum match"
+          value={String(selectedMatch)}
+          onValueChange={(value) => setSelectedMatch(Number(value))}
+          options={MINIMUM_MATCH_OPTIONS.filter((option) => option.value > 0).map(
+            (option) => ({ value: String(option.value), label: option.label })
+          )}
+          prefix={<span className="text-xs text-espresso/55">Match</span>}
+          menuClassName="w-full"
+        />
+        <Dropdown
+          ariaLabel="Applications this run"
+          value={String(selectedRunLimit)}
+          onValueChange={(value) => setSelectedRunLimit(Number(value))}
+          options={RUN_LIMIT_OPTIONS.map((value) => ({
+            value: String(value),
+            label: `Up to ${value} application${value === 1 ? "" : "s"}`,
+          }))}
+          prefix={<span className="text-xs text-espresso/55">Run limit</span>}
+          menuClassName="w-full"
+        />
+      </ConfirmDialog>
     </Container>
   );
 }

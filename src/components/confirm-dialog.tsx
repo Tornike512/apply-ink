@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Button } from "@/components/button";
 import { Container } from "@/components/container";
 
@@ -7,6 +8,7 @@ type ConfirmDialogProps = {
   description: string;
   confirmLabel: string;
   cancelLabel?: string;
+  children?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -17,6 +19,7 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   cancelLabel = "Cancel",
+  children,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -37,6 +40,7 @@ export function ConfirmDialog({
       >
         <h2 className="text-lg font-semibold text-espresso">{title}</h2>
         <p className="text-sm leading-6 text-espresso/80">{description}</p>
+        {children}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>
             {cancelLabel}

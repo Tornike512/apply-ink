@@ -178,8 +178,8 @@ export default function DashboardPage() {
   });
   const loadingJobs = jobsQuery.isPending;
   const apps = useApplications();
-  const autoApply = useAutoApply(loadedJobs, (job) =>
-    apps.add(job, "auto", false)
+  const autoApply = useAutoApply(loadedJobs, (job, autoSubmit) =>
+    apps.add(job, "auto", false, autoSubmit)
   );
 
   const appliedCount = autoApply.log.filter(
@@ -360,7 +360,7 @@ export default function DashboardPage() {
             status={autoApply.status}
             usedToday={autoApply.usedToday}
             dailyLimit={autoApply.dailyLimit}
-            minMatch={autoApply.minMatch}
+            minMatch={jobFilters.minMatch || autoApply.minMatch}
             appliedCount={appliedCount}
             processedCount={processedCount}
             totalCount={loadedJobs.length}
@@ -373,7 +373,6 @@ export default function DashboardPage() {
             tailoringConfigured={profile.tailoringConfigured}
             applicationAnswerCount={profile.applicationAnswerCount}
             applicationAnswerTotal={profile.applicationAnswerTotal}
-            autoSubmitEnabled={profile.autoSubmitEnabled}
             startDisabled={
               loadingJobs || loadedJobs.length === 0 || profileQuery.isPending
             }

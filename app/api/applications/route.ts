@@ -113,6 +113,7 @@ export async function POST(request: Request) {
       job?: unknown;
       via?: Application["via"];
       openBrowser?: boolean;
+      autoSubmit?: boolean;
     };
     const job = parseJob(body.job);
     const via = body.via === "auto" ? "auto" : "manual";
@@ -216,7 +217,7 @@ export async function POST(request: Request) {
       resumeMimeType: tailoredResume.mimeType,
     };
     const direct =
-      via === "manual" || profile.autoSubmitEnabled
+      via === "manual" || body.autoSubmit === true || (body.autoSubmit === undefined && profile.autoSubmitEnabled)
         ? await tryDirectAtsApply(job, tailoredProfile)
         : {
             status: "unavailable" as const,

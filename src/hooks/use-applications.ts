@@ -20,12 +20,13 @@ async function loadApplications(): Promise<Application[]> {
 async function startApplication(
   job: Job,
   via: Application["via"],
-  openBrowser: boolean
+  openBrowser: boolean,
+  autoSubmit?: boolean
 ): Promise<ApplicationAttempt> {
   const response = await fetch("/api/applications", {
     method: "POST",
     headers: { ...LOCAL_HEADERS, "Content-Type": "application/json" },
-    body: JSON.stringify({ job, via, openBrowser }),
+    body: JSON.stringify({ job, via, openBrowser, autoSubmit }),
   });
   if (!response.ok) throw await responseError(response);
   return response.json() as Promise<ApplicationAttempt>;
@@ -51,8 +52,13 @@ export function useApplications() {
   );
 
   const add = useCallback(
-    async (job: Job, via: Application["via"], openBrowser = false) => {
-      const attempt = await startApplication(job, via, openBrowser);
+    async (
+      job: Job,
+      via: Application["via"],
+      openBrowser = false,
+      autoSubmit?: boolean
+    ) => {
+      const attempt = await startApplication(job, via, openBrowser, autoSubmit);
       replaceApplication(attempt.application);
       return attempt;
     },
