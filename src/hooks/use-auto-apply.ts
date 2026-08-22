@@ -5,6 +5,7 @@ import {
   decideJob,
   type ActivityEntry,
   type ActivityStatus,
+  type AutoApplySettings,
   type AutoApplyStatus,
 } from "@/lib/auto-apply";
 import type { Job } from "@/lib/jobs";
@@ -43,7 +44,7 @@ function timestamp(): string {
 
 export function useAutoApply(
   jobs: Job[],
-  onApply?: (job: Job) => Promise<ApplicationAttempt>
+  onApply?: (job: Job, autoSubmit: boolean) => Promise<ApplicationAttempt>
 ) {
   const [status, setStatus] = useState<AutoApplyStatus>("idle");
   const [log, setLog] = useState<ActivityEntry[]>([]);
@@ -54,6 +55,12 @@ export function useAutoApply(
 
   const queueRef = useRef<Job[]>([]);
   const indexRef = useRef(0);
+  const runCountRef = useRef(0);
+  const settingsRef = useRef<AutoApplySettings>({
+    minMatch: AUTO_APPLY_RULES.minMatch,
+    runLimit: AUTO_APPLY_RULES.dailyLimit,
+    autoSubmit: false,
+  });
   const usedRef = useRef(0);
   const startedIdsRef = useRef(new Set<string>());
 
@@ -70,9 +77,11 @@ export function useAutoApply(
     return () => window.clearTimeout(timer);
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback((settings: AutoApplySettings) => {
     if (jobs.length === 0) return;
     if (usedRef.current >= AUTO_APPLY_RULES.dailyLimit) return;
+    settingsRef.current = settings;
+    runCountRef.current = 0;
     queueRef.current = [...jobs];
     indexRef.current = 0;
     setLog([]);
@@ -99,7 +108,10 @@ export function useAutoApply(
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       if (cancelled) return;
-      if (usedRef.current >= AUTO_APPLY_RULES.dailyLimit) {
+      if (
+        usedRef.current >= AUTO_APPLY_RULES.dailyLimit ||
+        runCountRef.current >= settingsRef.current.runLimit
+      ) {
         setLog((entries) => [
           {
             id: `limit-${indexRef.current}`,
@@ -123,15 +135,20 @@ export function useAutoApply(
       }
       indexRef.current += 1;
 
-      const decision = decideJob(job, startedIdsRef.current.has(job.id));
+      const decision = decideJob(
+        job,
+        startedIdsRef.current.has(job.id),
+        settingsRef.current.minMatch
+      );
       let activityStatus: ActivityStatus =
         decision.status === "skipped" ? "skipped" : "error";
       let note = decision.note;
 
       if (decision.status === "ready") {
+        runCountRef.current += 1;
         try {
           if (!onApplyRef.current) throw new Error("Could not start this application. Try again.");
-          const attempt = await onApplyRef.current(job);
+          const attempt = await onApplyRef.current(job, settingsRef.current.autoSubmit);
           activityStatus =
             attempt.application.status === "submitted"
               ? "applied"

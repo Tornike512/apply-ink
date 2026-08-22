@@ -47,6 +47,8 @@ export const POSTED_WITHIN_OPTIONS = [
 
 export const MINIMUM_MATCH_OPTIONS = [
   { value: 0, label: "Any match" },
+  { value: 50, label: "50%+ match" },
+  { value: 60, label: "60%+ match" },
   { value: 70, label: "70%+ match" },
   { value: 80, label: "80%+ match" },
   { value: 90, label: "90%+ match" },
