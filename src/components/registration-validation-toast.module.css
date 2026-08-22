@@ -1,0 +1,20 @@
+.progress {
+  animation: validation-toast-progress 7s linear forwards;
+  transform-origin: left;
+}
+
+@keyframes validation-toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress {
+    animation: none;
+  }
+}

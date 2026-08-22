@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { CloseIcon } from "@/assets";
 import { ApplicationQuestionFields } from "@/components/application-question-fields";
 import { Button } from "@/components/button";
 import { CountryPhoneInput } from "@/components/country-phone-input";
+import { RegistrationValidationToast } from "@/components/registration-validation-toast";
 import { SkillsInput } from "@/components/skills-input";
 import { Spinner } from "@/components/spinner";
 import {
@@ -26,27 +28,63 @@ const inputClass =
 const STEPS = [
   {
     title: "Account",
-    description: "Your email and secure password",
+    description: "Add your email and password",
   },
   {
     title: "Resume",
-    description: "Upload your CV and review filled details",
+    description: "Upload your resume and review the details",
   },
   {
     title: "Preferences",
-    description: "Work authorization and availability",
+    description: "Add work rights and availability",
   },
   {
     title: "Experience",
-    description: "Reusable answers employers ask most",
+    description: "Save answers employers often ask",
   },
   {
     title: "Permissions",
-    description: "Choose what AI may submit for you",
+    description: "Choose what Apply Ink can submit",
   },
 ] as const;
 
 type ValidatableField = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+const REGISTRATION_FIELD_NAMES: Record<string, string> = {
+  email: "email address",
+  password: "password",
+  passwordConfirmation: "password confirmation",
+  firstName: "first name",
+  lastName: "last name",
+  location: "current location",
+};
+
+function capitalizeLabel(value: string): string {
+  return `${value.charAt(0).toLocaleUpperCase()}${value.slice(1)}`;
+}
+
+function invalidFieldIssue(field: ValidatableField): string {
+  const name = field.getAttribute("name") ?? "";
+  const readableName =
+    REGISTRATION_FIELD_NAMES[name] ??
+    field.getAttribute("aria-label")?.trim().toLocaleLowerCase() ??
+    "required field";
+  const label = capitalizeLabel(readableName);
+
+  if (field.validity.valueMissing) {
+    return label;
+  }
+  if (field.validity.typeMismatch && name === "email") {
+    return "Email address: use name@example.com";
+  }
+  if (
+    field.validity.tooShort &&
+    (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)
+  ) {
+    return `${label}: use at least ${field.minLength} characters`;
+  }
+  return `${label}: check this value`;
+}
 
 type ResumePrefillResponse = {
   answers?: Record<string, string | string[]>;
@@ -55,6 +93,11 @@ type ResumePrefillResponse = {
 };
 
 type ResumePrefillStage = "uploading" | "reading" | "complete";
+
+type ValidationToastState = {
+  id: number;
+  fields: string[];
+};
 
 function mergeUniqueSkills(current: string[], detected: string[]): string[] {
   const seen = new Set<string>();
@@ -110,6 +153,7 @@ export function RegistrationWizard({
   const prefillProgressTimerRef = useRef<number | null>(null);
   const prefillUploadFallbackTimerRef = useRef<number | null>(null);
   const prefillReadingStartedAtRef = useRef<number | null>(null);
+  const validationToastIdRef = useRef(0);
   const [step, setStep] = useState(0);
   const [furthestStep, setFurthestStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -120,6 +164,8 @@ export function RegistrationWizard({
   const [removingResume, setRemovingResume] = useState(false);
   const [resumeReadError, setResumeReadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [validationToast, setValidationToast] =
+    useState<ValidationToastState | null>(null);
   const [answerCount, setAnswerCount] = useState<number | null>(null);
   const [editedPhone, setEditedPhone] = useState<string | null>(null);
   const [editedSkills, setEditedSkills] = useState<string[] | null>(null);
@@ -140,6 +186,19 @@ export function RegistrationWizard({
   const coverage = Math.round(
     (visibleAnswerCount / profile.applicationAnswerTotal) * 100
   );
+
+  const closeValidationToast = useCallback((id: number) => {
+    setValidationToast((current) => (current?.id === id ? null : current));
+  }, []);
+
+  function showValidationToast(fields: string[]) {
+    validationToastIdRef.current += 1;
+    setMessage(null);
+    setValidationToast({
+      id: validationToastIdRef.current,
+      fields: [...new Set(fields)],
+    });
+  }
 
   function clearPrefillProgressTimer() {
     if (prefillProgressTimerRef.current !== null) {
@@ -194,7 +253,7 @@ export function RegistrationWizard({
 
   function stepIsValid(): boolean {
     if (prefilling) {
-      setMessage("Wait while we finish reading your CV.");
+      setMessage("Wait while we finish reading your resume.");
       return false;
     }
     if (step === 1 && resumeReadError) {
@@ -207,13 +266,15 @@ export function RegistrationWizard({
     );
     if (!container) return false;
 
-    if (
-      step === 1 &&
-      !visibleResumeName
-    ) {
-      setMessage("Upload your CV so we can fill the supported fields.");
-      resumeUploadButtonRef.current?.focus();
-      return false;
+    const issues: string[] = [];
+    const invalidFields: HTMLElement[] = [];
+    const addIssue = (issue: string, field?: HTMLElement | null) => {
+      issues.push(issue);
+      if (field) invalidFields.push(field);
+    };
+
+    if (step === 1 && !visibleResumeName) {
+      addIssue("Resume", resumeUploadButtonRef.current);
     }
 
     const fields = container.querySelectorAll<ValidatableField>(
@@ -221,15 +282,15 @@ export function RegistrationWizard({
     );
     for (const field of fields) {
       if (!field.checkValidity()) {
-        field.reportValidity();
-        return false;
+        addIssue(invalidFieldIssue(field), field);
       }
     }
 
     if (step === 1 && skills.length === 0) {
-      setMessage("Choose at least one skill AI can use to match jobs.");
-      form?.querySelector<HTMLButtonElement>('[aria-label="Choose skills"]')?.focus();
-      return false;
+      addIssue(
+        "Skills",
+        form?.querySelector<HTMLButtonElement>('[aria-label="Choose skills"]')
+      );
     }
 
     if (step === 2 && form) {
@@ -246,39 +307,47 @@ export function RegistrationWizard({
         !Array.isArray(workAuthorizationCountries) ||
         workAuthorizationCountries.length === 0
       ) {
-        setMessage("Select at least one country where you can work without sponsorship.");
-        form
-          .querySelector<HTMLButtonElement>(
+        addIssue(
+          "Countries where you can work without sponsorship",
+          form.querySelector<HTMLButtonElement>(
             '[aria-label="Countries where you can work without sponsorship"]'
           )
-          ?.focus();
-        return false;
+        );
       }
       if (!String(formData.get("needsSponsorship") ?? "").trim()) {
-        setMessage("Choose whether you need sponsorship outside those countries.");
-        form
-          .querySelector<HTMLButtonElement>(
+        addIssue(
+          "Sponsorship answer",
+          form.querySelector<HTMLButtonElement>(
             '[aria-label="Visa sponsorship outside selected countries"]'
           )
-          ?.focus();
-        return false;
+        );
       }
       if (!String(formData.get("noticePeriod") ?? "").trim()) {
-        setMessage("Select your notice period.");
-        form
-          .querySelector<HTMLButtonElement>('[aria-label="Notice period"]')
-          ?.focus();
-        return false;
+        addIssue(
+          "Notice period",
+          form.querySelector<HTMLButtonElement>('[aria-label="Notice period"]')
+        );
       }
     }
 
     if (step === 0 && form && !authenticatedUser) {
       const formData = new FormData(form);
-      if (formData.get("password") !== formData.get("passwordConfirmation")) {
-        setMessage("Passwords do not match.");
-        form.querySelector<HTMLInputElement>('[name="passwordConfirmation"]')?.focus();
-        return false;
+      if (
+        formData.get("password") &&
+        formData.get("passwordConfirmation") &&
+        formData.get("password") !== formData.get("passwordConfirmation")
+      ) {
+        addIssue(
+          "Password confirmation: enter the same password twice",
+          form.querySelector<HTMLInputElement>('[name="passwordConfirmation"]')
+        );
       }
+    }
+
+    if (issues.length > 0) {
+      showValidationToast(issues);
+      invalidFields[0]?.focus();
+      return false;
     }
     return true;
   }
@@ -301,8 +370,8 @@ export function RegistrationWizard({
     setResumeReadError(null);
     setMessage(
       resume
-        ? "Uploading your CV and finding reusable answers..."
-        : "Reading your saved CV and finding reusable answers..."
+        ? "Uploading your resume and finding reusable answers..."
+        : "Reading your saved resume and finding reusable answers..."
     );
 
     const formData = new FormData();
@@ -357,16 +426,16 @@ export function RegistrationWizard({
           );
         });
         xhr.addEventListener("error", () =>
-          reject(new Error("Could not connect while reading this CV."))
+          reject(new Error("Could not read this resume. Check your connection and try again."))
         );
         xhr.addEventListener("abort", () =>
-          reject(new DOMException("CV reading was cancelled.", "AbortError"))
+          reject(new DOMException("Resume reading was cancelled.", "AbortError"))
         );
         xhr.send(formData);
       });
       const data = response.data;
       if (!response.ok || !data.answers) {
-        throw new Error(data.error ?? "Could not read answers from this CV.");
+        throw new Error(data.error ?? "Could not read answers from this resume.");
       }
       if (prefillRequestRef.current !== requestId) return;
 
@@ -429,8 +498,8 @@ export function RegistrationWizard({
       setPrefillProgress(100);
       setMessage(
         appliedCount > 0
-          ? `${appliedCount} answer${appliedCount === 1 ? "" : "s"} filled from your CV. Review them before continuing.`
-          : "CV read successfully. Your existing answers were kept."
+          ? `${appliedCount} answer${appliedCount === 1 ? "" : "s"} filled from your resume. Review them before continuing.`
+          : "Resume read. Your saved answers were kept."
       );
       await new Promise((resolve) => window.setTimeout(resolve, 180));
     } catch (error) {
@@ -439,7 +508,7 @@ export function RegistrationWizard({
       const nextMessage =
         error instanceof Error
           ? error.message
-          : "Could not read answers from this CV.";
+          : "Could not read answers from this resume.";
       setResumeReadError(nextMessage);
       setMessage(nextMessage);
       if (resume) {
@@ -480,8 +549,8 @@ export function RegistrationWizard({
       setPrefilling(false);
       setMessage(
         profile.resumeFileName
-          ? "Replacement removed. Your previously approved CV is still saved."
-          : "CV removed. Upload another CV when you are ready."
+          ? "New resume removed. Your saved resume is still available."
+          : "Resume removed. Upload another resume when you are ready."
       );
       return;
     }
@@ -498,12 +567,12 @@ export function RegistrationWizard({
         error?: string;
       };
       if (!response.ok || !data.profile) {
-        throw new Error(data.error ?? "Could not remove the CV.");
+        throw new Error(data.error ?? "Could not remove the resume. Try again.");
       }
       queryClient.setQueryData(CANDIDATE_PROFILE_KEY, data.profile);
-      setMessage("CV removed. Upload another CV when you are ready.");
+      setMessage("Resume removed. Upload another resume when you are ready.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not remove the CV.");
+      setMessage(error instanceof Error ? error.message : "Could not remove the resume. Try again.");
     } finally {
       setRemovingResume(false);
     }
@@ -512,6 +581,7 @@ export function RegistrationWizard({
   function nextStep() {
     setMessage(null);
     if (!stepIsValid()) return;
+    setValidationToast(null);
     const next = Math.min(step + 1, STEPS.length - 1);
     setStep(next);
     setFurthestStep((current) => Math.max(current, next));
@@ -520,6 +590,7 @@ export function RegistrationWizard({
 
   function previousStep() {
     setMessage(null);
+    setValidationToast(null);
     setStep((current) => Math.max(0, current - 1));
     scrollToWizard();
   }
@@ -527,6 +598,7 @@ export function RegistrationWizard({
   function openStep(index: number) {
     if (index > furthestStep || saving) return;
     setMessage(null);
+    setValidationToast(null);
     setStep(index);
     scrollToWizard();
   }
@@ -603,8 +675,8 @@ export function RegistrationWizard({
               Create your Apply Ink account
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-espresso/60">
-              Five short steps give AI the verified answers it needs to complete
-              more applications without stopping.
+              Add details Apply Ink can reuse in applications. More saved
+              answers mean fewer pauses.
             </p>
           </div>
           <p className="text-sm text-espresso/55">
@@ -675,7 +747,7 @@ export function RegistrationWizard({
               </ol>
               <div className="mt-4 hidden border-t border-sand/60 px-3 pt-4 lg:block">
                 <div className="flex items-center justify-between text-xs font-semibold text-espresso/60">
-                  <span>Automation coverage</span>
+                  <span>Answers ready</span>
                   <span>{coverage}%</span>
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-sand/45">
@@ -727,7 +799,7 @@ export function RegistrationWizard({
                       </p>
                       <input type="hidden" name="email" value={authenticatedUser.email} readOnly />
                       <p className="mt-3 text-xs leading-5 text-espresso/50">
-                        Continue to upload your CV and finish your application profile.
+                        Continue with your resume and application details.
                       </p>
                     </div>
                   ) : (
@@ -754,12 +826,12 @@ export function RegistrationWizard({
                   </a>
                   {!googleEnabled && (
                     <p className="mt-2 text-xs text-sienna">
-                      Google sign-in will activate after its two deployment keys are added.
+                      Google sign-in is not available right now. Use email instead.
                     </p>
                   )}
                   <div className="my-5 flex items-center gap-3" aria-hidden="true">
                     <span className="h-px flex-1 bg-sand" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-espresso/35">or use email</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-espresso/35">or continue with email</span>
                     <span className="h-px flex-1 bg-sand" />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -789,20 +861,19 @@ export function RegistrationWizard({
                 <section data-registration-step="1" hidden={step !== 1}>
                   <div className="mb-6 rounded-2xl border border-sand bg-cream/55 p-5">
                     <p className="text-base font-bold text-espresso">
-                      Fill the form from your resume
+                      Upload your resume
                       <span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                     </p>
                     <p className="mt-1.5 text-sm leading-6 text-espresso/60">
-                      Upload your CV and Apply Ink will fill supported contact
-                      details and common experience answers. You can review and
-                      edit every field before creating your account.
+                      Apply Ink reads supported contact and work details, then
+                      fills what it finds. Review every field before you continue.
                     </p>
                     <input
                       ref={resumeInputRef}
                       name="resume"
                       type="file"
                       accept=".pdf,.doc,.docx,.rtf,.odt,.txt"
-                      aria-label="Upload CV to fill the form"
+                      aria-label="Upload resume to fill the form"
                       onChange={(event) => {
                         const resume = event.currentTarget.files?.[0];
                         if (resume) {
@@ -827,19 +898,19 @@ export function RegistrationWizard({
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-bold text-espresso">
                               {prefillStage === "uploading"
-                                ? "Uploading your CV..."
+                                ? "Uploading your resume..."
                                 : prefillStage === "complete"
-                                  ? "CV ready"
-                                  : "Reading your CV..."}
+                                  ? "Resume ready"
+                                  : "Reading or scanning your resume..."}
                             </span>
                             <span className="mt-0.5 block truncate text-xs text-espresso/55">
-                              {selectedResumeName ?? visibleResumeName ?? "Saved CV"}
+                              {selectedResumeName ?? visibleResumeName ?? "Saved resume"}
                             </span>
                           </span>
                         </div>
                         <div
                           role="progressbar"
-                          aria-label="CV upload and reading progress"
+                          aria-label="Resume upload and reading progress"
                           aria-valuemin={0}
                           aria-valuemax={100}
                           aria-valuenow={Math.round(prefillProgress)}
@@ -855,8 +926,8 @@ export function RegistrationWizard({
                             {prefillStage === "uploading"
                               ? "Uploading the document. This percentage uses the actual bytes sent."
                               : prefillStage === "complete"
-                                ? "Readable details found and applied."
-                                : "Checking readability and filling verified details. This part is estimated."}
+                                ? "Details found and added to the form."
+                                : "Reading or scanning the file and filling verified details. The remaining time is an estimate."}
                           </p>
                           <span className="shrink-0 font-bold text-sienna">
                             {Math.round(prefillProgress)}%
@@ -883,10 +954,10 @@ export function RegistrationWizard({
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-bold text-success">
-                            CV approved
+                            Resume ready
                           </span>
                           <span className="block truncate text-xs text-espresso/60">
-                            {visibleResumeName} · readable and ready to use
+                            {visibleResumeName} · ready to use
                           </span>
                         </span>
                         <span className="flex items-center gap-2">
@@ -897,7 +968,7 @@ export function RegistrationWizard({
                             disabled={removingResume}
                             className="rounded-lg border border-success/35 bg-surface px-3 py-2 text-xs font-bold text-espresso transition-colors hover:border-success disabled:opacity-50"
                           >
-                            Replace CV
+                            Replace resume
                           </button>
                           <button
                             type="button"
@@ -905,7 +976,7 @@ export function RegistrationWizard({
                             disabled={removingResume}
                             className="rounded-lg px-3 py-2 text-xs font-bold text-sienna transition-colors hover:bg-sienna/8 disabled:opacity-50"
                           >
-                            {removingResume ? "Removing..." : "Remove"}
+                            {removingResume ? "Removing..." : "Remove resume"}
                           </button>
                         </span>
                       </div>
@@ -917,7 +988,7 @@ export function RegistrationWizard({
                         onClick={() => resumeInputRef.current?.click()}
                         className="inline-flex min-h-11 items-center justify-center rounded-xl bg-sienna px-5 py-2.5 text-sm font-bold text-cream transition-colors hover:bg-espresso"
                       >
-                        Upload CV and fill my form
+                        Upload resume and fill form
                       </button>
                       <span className="text-xs leading-5 text-espresso/55">
                         {selectedResumeName ??
@@ -932,7 +1003,7 @@ export function RegistrationWizard({
                         disabled={prefilling}
                         className="mt-3 text-xs font-semibold text-sienna underline underline-offset-2 disabled:opacity-50"
                       >
-                        Fill remaining fields from my saved CV
+                        Fill remaining details from my saved resume
                       </button>
                     )}
                   </div>
@@ -976,7 +1047,7 @@ export function RegistrationWizard({
                       <input name="githubUrl" type="text" inputMode="url" placeholder="github.com/your-name" defaultValue={profile.githubUrl} className={inputClass} />
                     </label>
                     <div className="text-sm font-medium text-espresso sm:col-span-2">
-                      Skills AI may use in ATS-tailored CVs
+                      Skills Apply Ink may use in job-specific resumes
                       <span className="ml-1 text-terracotta" aria-hidden="true">*</span>
                       <SkillsInput value={skills} onChange={setEditedSkills} required />
                     </div>
@@ -985,14 +1056,14 @@ export function RegistrationWizard({
                       <textarea
                         name="coverLetter"
                         rows={4}
-                        placeholder="AI will write a truthful introduction from your CV if you leave this blank."
+                        placeholder="Leave blank and Apply Ink will write a truthful introduction from your resume."
                         defaultValue={profile.coverLetter}
                         className={`${inputClass} resize-y`}
                       />
                     </label>
                   </fieldset>
                   <p className="mt-4 text-xs text-espresso/50">
-                    <span className="font-bold text-terracotta">*</span> Required so AI can identify you, contact employers, match relevant jobs, and create truthful applications. Links and the cover note are optional.
+                    <span className="font-bold text-terracotta">*</span> Required fields help Apply Ink identify you, contact employers, match jobs, and prepare truthful applications. Links and the cover note are optional.
                   </p>
                 </section>
 
@@ -1015,7 +1086,7 @@ export function RegistrationWizard({
                       {visibleAnswerCount} of {profile.applicationAnswerTotal} common answers ready
                     </p>
                     <p className="mt-1 text-xs leading-5 text-espresso/55">
-                      Blank answers stay blank. AI will pause instead of guessing.
+                      Blank answers stay blank. Apply Ink pauses instead of guessing.
                     </p>
                   </div>
                 </section>
@@ -1042,7 +1113,7 @@ export function RegistrationWizard({
                       }}
                       className="min-w-28 rounded-xl px-5 py-2.5"
                     >
-                      {prefilling ? "Reading CV..." : "Continue"}
+                      {prefilling ? "Reading resume..." : "Continue"}
                     </Button>
                   ) : (
                     <Button type="submit" variant="primary" disabled={saving} className="min-w-48 rounded-xl px-6 py-2.5">
@@ -1067,19 +1138,23 @@ export function RegistrationWizard({
             role="dialog"
             aria-modal="true"
             aria-label="Why these questions matter"
-            className="w-full max-w-md rounded-3xl border border-sand bg-surface p-6 shadow-[0_28px_90px_rgba(39,24,18,0.28)] sm:p-8"
+            className="relative w-full max-w-md rounded-3xl border border-sand bg-surface p-6 shadow-[0_28px_90px_rgba(39,24,18,0.28)] sm:p-8"
           >
-            <span className="flex size-11 items-center justify-center rounded-2xl bg-terracotta/12 text-xl" aria-hidden="true">
-              ✦
-            </span>
-            <h2 className="mt-5 text-2xl font-bold text-espresso">
-              More answers mean fewer interruptions
+            <button
+              type="button"
+              aria-label="Close explanation"
+              onClick={() => setShowAutomationTip(false)}
+              className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full border border-sand bg-surface text-espresso/60 transition-colors hover:bg-sand/45 hover:text-espresso focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sienna"
+            >
+              <CloseIcon width={16} height={16} />
+            </button>
+            <h2 className="pr-10 text-2xl font-bold text-espresso">
+              Answer more now, pause less later
             </h2>
             <p className="mt-3 text-sm leading-6 text-espresso/65">
-              The more questions you answer, the more job applications AI can
-              submit without asking for your help. Successful automatic submissions
-              are recorded in Messages. You only receive a “Needs you” alert when an
-              employer asks something missing or requires verification such as a CAPTCHA.
+              Saved answers help Apply Ink complete more application forms
+              without stopping. If an employer asks something new or shows a
+              CAPTCHA, the application appears in Messages for you to finish.
             </p>
             <button
               type="button"
@@ -1091,6 +1166,14 @@ export function RegistrationWizard({
             </button>
           </div>
         </div>
+      )}
+      {validationToast && (
+        <RegistrationValidationToast
+          key={validationToast.id}
+          id={validationToast.id}
+          fields={validationToast.fields}
+          onClose={closeValidationToast}
+        />
       )}
     </main>
   );

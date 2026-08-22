@@ -99,9 +99,11 @@ async function main() {
       name: "Why these questions matter",
     });
     await automationDialog.waitFor();
+    const automationExplanation = await automationDialog.textContent();
     if (
-      !(await automationDialog.textContent())?.includes("fewer interruptions") ||
-      !(await automationDialog.textContent())?.includes("Messages")
+      !automationExplanation?.includes("pause less later") ||
+      !automationExplanation.includes("Messages") ||
+      !automationExplanation.includes("CAPTCHA")
     ) {
       throw new Error("Registration automation explanation is missing.");
     }
@@ -123,6 +125,27 @@ async function main() {
     if (formTop < 70 || formTop > 140) {
       throw new Error("Header Register link did not scroll to the form.");
     }
+    await page.locator('input[name="email"]').fill("");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    const requiredFieldsToast = page
+      .getByRole("alert")
+      .filter({ hasText: "Complete required fields" });
+    await requiredFieldsToast.waitFor();
+    const requiredFieldsCopy = await requiredFieldsToast.textContent();
+    for (const expected of [
+      "Check these 3 fields to continue:",
+      "Email address",
+      "Password",
+      "Password confirmation",
+    ]) {
+      if (!requiredFieldsCopy?.includes(expected)) {
+        throw new Error(`Required-fields toast is missing: ${expected}`);
+      }
+    }
+    await requiredFieldsToast
+      .getByRole("button", { name: "Close required fields message" })
+      .click();
+    await requiredFieldsToast.waitFor({ state: "detached" });
     await page.locator('input[name="email"]').fill(email);
     await page.locator('input[name="password"]').fill(`Account-${suffix}-6`);
     await page
@@ -130,10 +153,10 @@ async function main() {
       .fill(`Account-${suffix}-6`);
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Resume", exact: true }).waitFor();
-    await page.getByText("Fill the form from your resume", { exact: false }).waitFor();
+    await page.locator('input[aria-label="Upload resume to fill the form"]').waitFor();
     await page
       .getByRole("button", {
-        name: /^(?:Upload CV and fill my form|Replace CV)$/,
+        name: /^(?:Upload resume and fill form|Replace resume)$/,
       })
       .waitFor();
     await page.locator('input[name="firstName"]').fill("");
@@ -184,7 +207,9 @@ async function main() {
       mimeType: "text/plain",
       buffer: Buffer.from("Too short"),
     });
-    await page.getByText("No usable CV text was found", { exact: false }).waitFor();
+    await page
+      .getByText(/No (?:usable CV|readable resume) text was found/)
+      .waitFor();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("heading", { name: "Resume", exact: true }).waitFor();
     const prematureUser = await postgresQuery<{ count: string }>(
@@ -251,7 +276,7 @@ async function main() {
     await resumeReadingState.waitFor();
     try {
       await resumeReadingState
-        .getByText("Reading your CV...", { exact: true })
+        .getByText("Reading or scanning your resume...", { exact: true })
         .waitFor({ timeout: 5_000 });
     } catch {
       throw new Error(
@@ -262,7 +287,7 @@ async function main() {
       .getByText("registration-test-resume.pdf", { exact: false })
       .waitFor();
     const resumeProgress = resumeReadingState.getByRole("progressbar", {
-      name: "CV upload and reading progress",
+      name: "Resume upload and reading progress",
     });
     const readingProgress = Number(
       await resumeProgress.getAttribute("aria-valuenow")
@@ -276,17 +301,17 @@ async function main() {
       .locator('input[name="firstName"]')
       .isDisabled();
     const cvContinueDisabled = await page
-      .getByRole("button", { name: "Reading CV...", exact: true })
+      .getByRole("button", { name: "Reading resume...", exact: true })
       .isDisabled();
     if (!cvFieldsDisabled || !cvContinueDisabled) {
       throw new Error(
         `CV loading lock failed: fieldsDisabled=${cvFieldsDisabled}, continueDisabled=${cvContinueDisabled}.`
       );
     }
-    await page.getByText("answers filled from your CV", { exact: false }).waitFor();
+    await page.getByText("answers filled from your resume", { exact: false }).waitFor();
     await resumeReadingState.waitFor({ state: "detached" });
     const approvedResume = page.locator("[data-resume-approved]");
-    await approvedResume.getByText("CV approved", { exact: true }).waitFor();
+    await approvedResume.getByText("Resume ready", { exact: true }).waitFor();
     await approvedResume
       .getByText("registration-test-resume.pdf", { exact: false })
       .waitFor();
@@ -302,7 +327,9 @@ async function main() {
     await approvedResume
       .getByText("replacement-resume.pdf", { exact: false })
       .waitFor();
-    await approvedResume.getByRole("button", { name: "Remove" }).click();
+    await approvedResume
+      .getByRole("button", { name: /^Remove(?: resume)?$/ })
+      .click();
     await approvedResume
       .getByText("replacement-resume.pdf", { exact: false })
       .waitFor({ state: "detached" });
@@ -406,11 +433,7 @@ async function main() {
     await page.getByRole("button", { name: "Select skills" }).click();
     await skillListbox.waitFor({ state: "detached" });
     await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page
-      .getByText("Choose at least one skill AI can use to match jobs.", {
-        exact: true,
-      })
-      .waitFor();
+    await page.getByText(/Choose at least one skill/).waitFor();
     await page.getByRole("combobox", { name: "Choose skills" }).click();
     await skillListbox.getByRole("option", { name: "TypeScript", exact: true }).click();
     await skillListbox.getByRole("option", { name: "React", exact: true }).click();
@@ -489,7 +512,7 @@ async function main() {
     await page.getByRole("combobox", { name: sponsorshipQuestion }).click();
     await page
       .getByRole("listbox", { name: sponsorshipQuestion })
-      .getByRole("option", { name: /No.*selected countries only/ })
+      .getByRole("option", { name: /No.*selected countries/ })
       .click();
     if (
       (await page.locator('input[name="needsSponsorship"]').inputValue()) !== "no"
@@ -661,7 +684,11 @@ async function main() {
     ) {
       throw new Error("Dashboard scrollbars are not owned by the outer viewport.");
     }
-    if ((await page.getByRole("button", { name: "Upload your CV" }).count()) > 0) {
+    if (
+      (await page
+        .getByRole("button", { name: /Upload your (?:CV|resume)/ })
+        .count()) > 0
+    ) {
       throw new Error("Dashboard header still includes the CV upload button.");
     }
     await page.getByRole("button", { name: "Open notifications" }).click();
@@ -761,7 +788,9 @@ async function main() {
         url.searchParams.get("maxSalary") === "156000"
       );
     });
-    await salaryDialog.getByRole("button", { name: "Select" }).click();
+    await salaryDialog
+      .getByRole("button", { name: /^(?:Select|Use salary range)$/ })
+      .click();
     await salaryRequest;
     await page.getByRole("button", { name: "Salary" }).click();
     await page
