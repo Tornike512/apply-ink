@@ -9,7 +9,7 @@ export default function ForgotPasswordPage() {
       <AuthCard
         eyebrow="Account recovery"
         title="Reset your password"
-        description="Enter your account email. Reset links expire after one hour and can only be used once."
+        description="Enter your account email. The reset link works once and expires after one hour."
         footer={<AuthLink href="/login">Back to log in</AuthLink>}
       >
         <ForgotPasswordForm />

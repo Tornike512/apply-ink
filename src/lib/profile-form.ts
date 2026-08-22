@@ -44,7 +44,7 @@ export function onboardingValidationError(
     return "Choose a readable resume to create your account.";
   }
   if (profile.skills.length === 0) {
-    return "Choose at least one skill AI can use to match jobs.";
+    return "Choose at least one skill Apply Ink can use to match jobs.";
   }
   if (profile.applicationAnswers.workAuthorizationCountries.length === 0) {
     return "Select at least one country where you can work without sponsorship.";
@@ -327,7 +327,7 @@ export async function resumeFieldsFromFile(resume: File) {
   const extension = path.extname(resume.name).toLowerCase();
   if (!RESUME_EXTENSIONS.has(extension)) {
     throw new ResumeUploadError(
-      "CV must be a PDF, DOC, DOCX, RTF, ODT, or TXT file."
+      "Resume must be a PDF, DOC, DOCX, RTF, ODT, or TXT file."
     );
   }
   if (resume.size > MAX_RESUME_BYTES) {
@@ -341,7 +341,7 @@ export async function resumeFieldsFromFile(resume: File) {
     !allowedMimeTypes.includes(providedMime)
   ) {
     throw new ResumeUploadError(
-      "The CV file type does not match its file extension. Export it again and retry."
+      "The resume file type does not match its extension. Export it again and try again."
     );
   }
 
@@ -351,7 +351,7 @@ export async function resumeFieldsFromFile(resume: File) {
     resumeText = await extractResumeText(buffer, resume.name);
   } catch (error) {
     throw new ResumeUploadError(
-      error instanceof Error ? error.message : "Could not read this CV file."
+      error instanceof Error ? error.message : "Could not read this resume. Try another file."
     );
   }
 

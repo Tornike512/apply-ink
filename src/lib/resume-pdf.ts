@@ -281,5 +281,5 @@ export async function generateTailoredResumePdf(
     if (rendered.pageCount === 1) return rendered.buffer;
   }
 
-  throw new Error("The tailored CV could not be fitted safely onto one page.");
+  throw new Error("The job-specific resume did not fit on one page. Review your profile and try again.");
 }

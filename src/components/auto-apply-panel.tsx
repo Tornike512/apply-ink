@@ -67,17 +67,17 @@ export function AutoApplyPanel({
       : { label: "Idle", variant: "sand" as const, dot: "bg-espresso/40" };
 
   const lastRunLine = !cvUploaded
-    ? "Upload a CV to unlock auto-apply"
+    ? "Upload a resume to start automatic applications"
     : !profileComplete
       ? "Add your name and email in Settings"
       : !tailoringConfigured
-        ? "Add OPENAI_API_KEY to enable CV rewriting"
+        ? "Job-specific resumes are not available right now"
         : running
           ? `${processedCount} of ${totalCount} checked · ${usedToday}/${dailyLimit} today`
           : hasRun
             ? "Last run: just now"
             : atLimit
-              ? `${usedToday}/${dailyLimit} used today — resets tomorrow`
+              ? `${usedToday}/${dailyLimit} used today. You can start again tomorrow.`
               : "No runs yet";
 
   return (
@@ -90,7 +90,7 @@ export function AutoApplyPanel({
           <FileTextIcon width={24} height={24} />
         </span>
         <div>
-          <h2 className="text-2xl font-bold text-espresso">Auto-apply</h2>
+          <h2 className="text-2xl font-bold text-espresso">Automatic applications</h2>
           <svg
             viewBox="0 0 180 20"
             aria-hidden="true"
@@ -113,15 +113,15 @@ export function AutoApplyPanel({
 
       <div className="min-w-0 flex-1 lg:border-l lg:border-sand/70 lg:pl-6">
         <p className="max-w-md text-sm leading-6 text-espresso/70">
-          Rewrites your uploaded CV for each job, validates a one-page PDF, then
-          answers employer forms from your saved profile. The more common questions
-          you answer, the more applications can run without interrupting you.
+          For each job, Apply Ink creates a one-page resume from your approved
+          facts, checks it, and fills employer forms from your saved answers.
+          More saved answers mean fewer pauses.
         </p>
         <hr className="my-3 max-w-md border-sand/60" />
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium text-espresso">
           <span className="flex items-center gap-2">
             <TargetIcon width={18} height={18} className="text-sienna" />
-            ≥{minMatch}% match
+            {minMatch}% match or higher
           </span>
           <span className="flex items-center gap-2">
             <CalendarIcon width={18} height={18} className="text-sienna" />
@@ -144,7 +144,7 @@ export function AutoApplyPanel({
         </Badge>
         {running ? (
           <Button variant="primary" onClick={onStop} className="rounded-xl py-3">
-            Pause auto-apply
+            Pause applications
           </Button>
         ) : (
           <Button
@@ -154,7 +154,7 @@ export function AutoApplyPanel({
             className="rounded-xl py-3 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PlayIcon width={18} height={18} />
-            {!cvUploaded ? "Upload CV first" : "Route matching jobs"}
+            {!cvUploaded ? "Upload resume first" : "Start applying"}
           </Button>
         )}
         <p aria-live="polite" className="text-center text-xs text-espresso/60">
@@ -190,9 +190,9 @@ export function AutoApplyPanel({
 
       <ConfirmDialog
         open={confirming}
-        title="Start auto-apply?"
-        description={`This will rewrite and validate a one-page CV for jobs with a ≥${minMatch}% match, up to ${dailyLimit} per day. ${autoSubmitEnabled ? "Complete connected applications may submit automatically." : "Automatic final submission is currently off in Settings."} CAPTCHA and unknown-answer jobs will be saved in Messages.`}
-        confirmLabel="Yes, start routing"
+        title="Start applying?"
+        description={`Apply Ink will prepare job-specific resumes for matches at or above ${minMatch}%, up to ${dailyLimit} applications today. ${autoSubmitEnabled ? "Complete applications on supported job sites may submit automatically." : "Automatic final submission is off in Settings."} Applications with a CAPTCHA or missing answer will appear in Messages.`}
+        confirmLabel="Start applications"
         onConfirm={() => {
           setConfirming(false);
           onStart();

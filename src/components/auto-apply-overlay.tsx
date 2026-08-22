@@ -15,10 +15,10 @@ const PHASE_IMAGES = [
 
 function jobPhases(company: string): string[] {
   return [
-    "Reading your uploaded CV...",
-    `Rewriting the CV for ${company}...`,
-    "Validating the one-page PDF...",
-    `Routing the ${company} application...`,
+    "Reading your uploaded resume...",
+    `Preparing a resume for ${company}...`,
+    "Checking the one-page resume...",
+    `Starting the ${company} application...`,
   ];
 }
 type AutoApplyOverlayProps = {
@@ -58,7 +58,7 @@ function AutoApplyProgress({
     <div
       role="alertdialog"
       aria-modal="true"
-      aria-label="Auto-apply in progress"
+      aria-label="Automatic applications in progress"
       className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-cream/95 p-6 backdrop-blur-sm"
     >
       <div className="relative h-44 w-44 overflow-hidden rounded-2xl">
@@ -89,11 +89,11 @@ function AutoApplyProgress({
         {phases[phaseIndex]}
       </p>
       <p className="text-sm text-espresso/60">
-        {processedCount} of {totalCount} checked - {appliedCount} submitted -{" "}
+        {processedCount} of {totalCount} checked · {appliedCount} submitted ·{" "}
         {usedToday}/{dailyLimit} today
       </p>
       <Button variant="secondary" onClick={onStop}>
-        Stop auto-apply
+        Pause applications
       </Button>
     </div>
   );

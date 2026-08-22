@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     });
   } catch {
     return Response.json(
-      { error: "Could not start password recovery." },
+      { error: "Could not create a reset link. Try again." },
       { status: 500 }
     );
   }

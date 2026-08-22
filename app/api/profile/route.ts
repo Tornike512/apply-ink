@@ -24,6 +24,7 @@ import {
 } from "@/lib/user-session";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function uploadError(error: unknown, fallback: string): Response {
   return Response.json(
@@ -56,7 +57,7 @@ function mergeResumePrefill(
     coverLetter: profile.coverLetter || prefill.coverLetter,
     skills: mergedSkills,
     skillsInventoryFileName: mergedSkills.length
-      ? profile.skillsInventoryFileName || "CV-detected skills"
+      ? profile.skillsInventoryFileName || "Resume-detected skills"
       : null,
     skillsInventoryJson: mergedSkills.length
       ? JSON.stringify({
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
     const saved = await saveCandidateProfile(sessionId, next);
     return Response.json({ profile: publicCandidateProfile(saved) });
   } catch (error) {
-    return uploadError(error, "Could not upload the resume.");
+    return uploadError(error, "Could not upload the resume. Try again.");
   }
 }
 
@@ -156,7 +157,7 @@ export async function PUT(request: Request) {
     );
     return Response.json({ profile: publicCandidateProfile(saved) });
   } catch (error) {
-    return uploadError(error, "Could not save the profile.");
+    return uploadError(error, "Could not save the profile. Try again.");
   }
 }
 
@@ -175,7 +176,7 @@ export async function DELETE(request: Request) {
     return Response.json({ profile: publicCandidateProfile(saved) });
   } catch {
     return Response.json(
-      { error: "Could not remove the resume." },
+      { error: "Could not remove the resume. Try again." },
       { status: 500 }
     );
   }

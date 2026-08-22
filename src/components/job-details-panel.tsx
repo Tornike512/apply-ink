@@ -27,7 +27,7 @@ export function JobDetailsPanel({
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-espresso">{job.title}</h2>
           <p className="text-sm text-espresso/70">
-            {job.company} - {job.location}
+            {job.company} · {job.location}
           </p>
         </div>
         <Button
@@ -61,7 +61,7 @@ export function JobDetailsPanel({
           About the role
         </h3>
         <p className="text-sm leading-6 text-espresso/80">
-          {job.description || "Open the posting for the full description."}
+          {job.description || "Open the original posting to read the full job description."}
         </p>
         {job.url !== "#" && (
           <a
@@ -70,7 +70,7 @@ export function JobDetailsPanel({
             rel="noopener noreferrer"
             className="mt-2 inline-block text-sm font-medium text-terracotta underline underline-offset-2 hover:text-sienna"
           >
-            View posting on {job.source}
+            View full posting on {job.source}
           </a>
         )}
       </div>
@@ -91,7 +91,7 @@ export function JobDetailsPanel({
             ? "Submitted"
             : needsUser
               ? "Continue application"
-              : "Apply with AI"}
+              : "Start application"}
         </Button>
       </div>
     </Container>

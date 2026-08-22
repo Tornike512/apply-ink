@@ -38,7 +38,7 @@ async function getJobs(
   }
   if (filters.minMatch) params.set("minMatch", String(filters.minMatch));
   const res = await fetch(`${API_URL}/api/jobs?${params}`);
-  if (!res.ok) throw new Error(`Failed to load jobs (${res.status})`);
+  if (!res.ok) throw new Error(`Could not load jobs (${res.status}). Refresh and try again.`);
   return res.json();
 }
 

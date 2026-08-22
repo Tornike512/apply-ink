@@ -40,6 +40,6 @@ export async function POST(request: Request) {
     await setAuthCookie(response, user);
     return response;
   } catch {
-    return Response.json({ error: "Could not log in." }, { status: 500 });
+    return Response.json({ error: "Could not log in. Try again." }, { status: 500 });
   }
 }

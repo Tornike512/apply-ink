@@ -43,5 +43,5 @@ export function decideJob(
       note: `Match ${job.match}% is below your ${AUTO_APPLY_RULES.minMatch}% rule`,
     };
   }
-  return { status: "ready", note: "Ready for application routing" };
+  return { status: "ready", note: "Ready to apply" };
 }

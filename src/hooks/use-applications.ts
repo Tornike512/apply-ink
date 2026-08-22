@@ -8,7 +8,7 @@ const LOCAL_HEADERS = { "x-apply-ink": "1" };
 
 async function responseError(response: Response): Promise<Error> {
   const data = (await response.json().catch(() => ({}))) as { error?: string };
-  return new Error(data.error ?? `Application request failed (${response.status}).`);
+  return new Error(data.error ?? `Could not update this application (${response.status}). Try again.`);
 }
 async function loadApplications(): Promise<Application[]> {
   const response = await fetch("/api/applications", { cache: "no-store" });

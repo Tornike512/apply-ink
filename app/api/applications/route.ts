@@ -81,14 +81,14 @@ export async function GET(request: Request) {
   if (resumeApplicationId) {
     const application = await getApplicationById(sessionId, resumeApplicationId);
     if (!application) {
-      return Response.json({ error: "Application not found." }, { status: 404 });
+      return Response.json({ error: "Application not found. Refresh the page and try again." }, { status: 404 });
     }
     const tailoredResume = await getCachedTailoredResume(
       application.job,
       await getCandidateProfile(sessionId)
     );
     if (!tailoredResume) {
-      return Response.json({ error: "Tailored CV not found." }, { status: 404 });
+      return Response.json({ error: "Job-specific resume not found. Start the application again." }, { status: 404 });
     }
     return new Response(new Uint8Array(tailoredResume.data), {
       headers: {
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
     const job = parseJob(body.job);
     const via = body.via === "auto" ? "auto" : "manual";
     if (!job) {
-      return Response.json({ error: "Invalid job data." }, { status: 400 });
+      return Response.json({ error: "This job is missing required details. Refresh the jobs list and try again." }, { status: 400 });
     }
 
     const existing = await getApplicationByJobId(sessionId, job.id);
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
         status: "needs_user",
         method: "assisted",
         via,
-        needsUserReason: "Upload a readable CV before starting any application.",
+        needsUserReason: "Upload a readable resume before starting an application.",
       });
       return Response.json({
         application,
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
         AUTO_APPLY_RULES.dailyLimit
       ))
     ) {
-      const reason = `Daily AI tailoring limit reached (${AUTO_APPLY_RULES.dailyLimit}). Try again tomorrow.`;
+      const reason = `You reached today's application limit (${AUTO_APPLY_RULES.dailyLimit}). Try again tomorrow.`;
       const application = await saveApplication({
         sessionId,
         job,
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
       const reason =
         error instanceof ResumeTailoringError
           ? error.message
-          : "The job-specific CV could not be created safely.";
+          : "The job-specific resume could not be created from your saved details.";
       const application = await saveApplication({
         sessionId,
         job,
@@ -246,14 +246,14 @@ export async function POST(request: Request) {
         const assisted = await launchAssistedApplication(job, tailoredProfile);
         browserOpened = assisted.opened;
         reason = assisted.opened
-          ? `A job-specific CV was attached and ${assisted.fieldsFilled} fields were filled. Review the form, complete any verification, and submit it.`
+          ? `A job-specific resume was attached and ${assisted.fieldsFilled} fields were filled. Review the form, complete any verification, and submit it.`
           : "Open the employer's application and finish it yourself.";
       } catch {
         reason =
           "The assisted browser could not open. Use the job link and finish the application yourself.";
       }
     } else {
-      reason = `Job-specific CV ready. ${reason} Open it from Applications when you are ready to finish.`;
+      reason = `Job-specific resume ready. ${reason} Open it from Applications when you are ready to finish.`;
     }
 
     const application = await saveApplication({
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
     return Response.json({ application, browserOpened, note: reason });
   } catch {
     return Response.json(
-      { error: "Could not start the application." },
+      { error: "Could not start the application. Try again." },
       { status: 500 }
     );
   }
@@ -281,14 +281,14 @@ export async function PATCH(request: Request) {
     if (!sessionId) return unauthenticatedResponse();
     const body = (await request.json()) as { id?: unknown; status?: unknown };
     if (typeof body.id !== "string" || body.status !== "submitted") {
-      return Response.json({ error: "Invalid status update." }, { status: 400 });
+      return Response.json({ error: "Could not mark this application as submitted. Refresh and try again." }, { status: 400 });
     }
     const application = await markApplicationSubmitted(sessionId, body.id);
     return application
       ? Response.json({ application })
-      : Response.json({ error: "Application not found." }, { status: 404 });
+      : Response.json({ error: "Application not found. Refresh the page and try again." }, { status: 404 });
   } catch {
-    return Response.json({ error: "Could not update the application." }, { status: 500 });
+    return Response.json({ error: "Could not update the application. Try again." }, { status: 500 });
   }
 }
 
@@ -297,8 +297,8 @@ export async function DELETE(request: Request) {
   const sessionId = await getAuthenticatedSessionId(request);
   if (!sessionId) return unauthenticatedResponse();
   const id = new URL(request.url).searchParams.get("id");
-  if (!id) return Response.json({ error: "Application ID is required." }, { status: 400 });
+  if (!id) return Response.json({ error: "Could not identify this application. Refresh and try again." }, { status: 400 });
   return (await deleteApplication(sessionId, id))
     ? new Response(null, { status: 204 })
-    : Response.json({ error: "Application not found." }, { status: 404 });
+    : Response.json({ error: "Application not found. Refresh the page and try again." }, { status: 404 });
 }

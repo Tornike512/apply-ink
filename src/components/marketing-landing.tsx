@@ -34,27 +34,27 @@ const steps = [
     number: "01",
     title: "Upload your resume",
     description:
-      "We read your skills and experience, then build a profile you can check and edit.",
+      "We read your skills and work history, then build a profile for you to review.",
   },
   {
     number: "02",
-    title: "See your best matches",
+    title: "Review your matches",
     description:
-      "Apply Ink finds global remote jobs and puts the strongest matches first.",
+      "See global remote jobs ranked by how well they fit your profile.",
   },
   {
     number: "03",
-    title: "Click once to apply",
+    title: "Start applying",
     description:
-      "Start many applications at once using the answers and rules you approved.",
+      "One click starts applications using the answers and rules you approved.",
   },
 ] as const;
 
 const runItems = [
-  ["Match checked", "Role fits your skills and job choices"],
-  ["Resume prepared", "Your real experience is shaped for the role"],
-  ["Form completed", "Saved answers fill common questions"],
-  ["Application sent", "The result is saved in your activity"],
+  ["Match checked", "The role fits your skills and job preferences"],
+  ["Resume prepared", "Your real experience is adapted to the role"],
+  ["Form filled", "Saved answers fill questions Apply Ink can answer"],
+  ["Result recorded", "See it later in Applications or Messages"],
 ] as const;
 
 function CheckIcon({ className = "" }: { className?: string }) {
@@ -200,7 +200,7 @@ export function MarketingLanding() {
           <div className="min-w-0">
             <p className="flex items-center gap-3 text-sm font-semibold text-sienna">
               <span className="h-px w-10 bg-terracotta" aria-hidden="true" />
-              Remote work, without the repetitive forms
+              Skip the repeated application forms
             </p>
 
             <h1 className="hero-title mt-6 max-w-3xl text-[2.55rem] text-espresso sm:text-6xl lg:text-[4.45rem]">
@@ -210,8 +210,8 @@ export function MarketingLanding() {
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-8 text-espresso/68 sm:text-xl">
-              Apply Ink finds global remote jobs that match you, prepares each
-              application, and fills the forms using answers you approved.
+              Apply Ink finds global remote jobs that match your profile,
+              prepares each application, and fills forms with answers you approved.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -219,7 +219,7 @@ export function MarketingLanding() {
                 href="/register#register"
                 className="group inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-sienna px-6 py-3 text-sm font-bold text-cream shadow-[0_14px_35px_rgba(98,65,55,0.22)] transition-all hover:-translate-y-0.5 hover:bg-espresso"
               >
-                Upload your resume
+                Start applying
                 <span className="transition-transform group-hover:translate-x-1">
                   <ArrowIcon />
                 </span>
@@ -233,7 +233,7 @@ export function MarketingLanding() {
             </div>
 
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-espresso/55">
-              {["Global remote roles", "No answers made up", "You set the rules"].map(
+              {["Global remote jobs", "Missing facts stay blank", "You set the rules"].map(
                 (item) => (
                   <span key={item} className="inline-flex items-center gap-1.5">
                     <CheckIcon className="size-4 text-success" />
@@ -306,7 +306,7 @@ export function MarketingLanding() {
                       <path d="m3 10 14-6-4.5 13-2.7-5.1z" strokeLinejoin="round" />
                       <path d="m9.8 11.9 2.6-2.6" strokeLinecap="round" />
                     </svg>
-                    Apply to 24 matches
+                    Apply to matching jobs
                   </div>
                   <svg
                     className={styles.demoCursor}
@@ -350,7 +350,7 @@ export function MarketingLanding() {
               <span className="flex size-6 items-center justify-center rounded-full bg-success text-cream">
                 <CheckIcon className="size-4" />
               </span>
-              8 applications sent
+              Applications sent
             </div>
           </figure>
         </section>
@@ -374,7 +374,7 @@ export function MarketingLanding() {
               How it works
             </p>
             <h2 className={`${styles.editorialHeading} mt-5 text-4xl leading-[1.02] tracking-[-0.045em] text-espresso sm:text-5xl lg:text-6xl`}>
-              From resume to applications in three simple steps.
+              From one resume to many applications.
             </h2>
           </div>
 
@@ -418,18 +418,18 @@ export function MarketingLanding() {
 
         <section className="grid items-center gap-12 rounded-[1.75rem] border border-sand bg-[#2F1C17] px-6 py-10 text-cream shadow-[0_24px_80px_rgba(42,23,19,0.18)] sm:px-10 sm:py-14 lg:grid-cols-[0.88fr_1.12fr] lg:gap-16 lg:px-14">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-terracotta">One-click application run</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-terracotta">What happens after one click</p>
             <h2 className="mt-3 text-3xl font-bold tracking-[-0.035em] sm:text-4xl">
-              One click starts the busy work.
+              One click starts your applications.
             </h2>
             <p className="mt-4 max-w-lg text-sm leading-7 text-cream/65 sm:text-base">
-              Apply Ink checks the match, prepares your resume, fills known
-              questions, and records every result. You do not repeat the same form all day.
+              Apply Ink checks each match, prepares a job-specific resume, fills
+              questions it can answer, and records the result. You do not have to repeat the same form.
             </p>
             <div className="mt-7 rounded-2xl border border-cream/12 bg-cream/6 p-4">
               <p className="flex items-start gap-3 text-sm leading-6 text-cream/72">
                 <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-terracotta/20 text-terracotta">!</span>
-                Apply Ink pauses when a company asks for a new answer, a sensitive choice, or a CAPTCHA.
+                Apply Ink pauses when a company asks a new question, requests a sensitive choice, or shows a CAPTCHA.
               </p>
             </div>
           </div>
@@ -469,19 +469,19 @@ export function MarketingLanding() {
               You stay in control
             </p>
             <h2 className={`${styles.editorialHeading} mt-7 text-5xl leading-[0.94] tracking-[-0.05em] text-espresso sm:text-6xl lg:text-7xl`}>
-              Fast does not<br className="hidden sm:block" /> mean careless<span className="text-terracotta">.</span>
+              Your profile sets<br className="hidden sm:block" /> the limits<span className="text-terracotta">.</span>
             </h2>
             <p className="mt-7 max-w-2xl text-base leading-8 text-espresso/62 sm:text-lg">
-              Your applications use facts from your resume and answers you
-              approved. If something is missing, Apply Ink asks instead of guessing.
+              Each application uses facts from your resume and saved answers.
+              If information is missing, Apply Ink pauses and asks you.
             </p>
           </div>
 
           <div className="relative z-10 mt-12 grid gap-5 md:grid-cols-3">
             {[
-              ["Your real experience", "Resume changes stay based on skills and work you actually have."],
-              ["Your approved answers", "Common form questions use the choices saved in your profile."],
-              ["Your final rules", "You choose when Apply Ink can submit and when it must pause."],
+              ["Your real experience", "Job-specific resumes stay based on the work and skills in your uploaded resume."],
+              ["Your saved answers", "Apply Ink reuses your answers for common application questions."],
+              ["Your submission rules", "You choose when Apply Ink may submit and when it must pause."],
             ].map(([title, description]) => (
               <article key={title} className={`${styles.controlCard} rounded-3xl border border-sand/90 bg-surface/88 p-7 sm:p-8`}>
                 <span className={styles.checkHalo}>
@@ -507,11 +507,11 @@ export function MarketingLanding() {
               Common questions
             </p>
             <h2 className="mt-3 text-3xl font-bold tracking-[-0.035em] text-espresso sm:text-5xl">
-              Before you let AI apply.
+              Questions before you start
             </h2>
             <p className="mt-4 text-sm leading-7 text-espresso/60 sm:text-base">
-              Clear answers about automation, worldwide jobs, human checks,
-              and your information.
+              Learn how applications work, which jobs you will see, when you
+              need to step in, and how your data is handled.
             </p>
           </div>
 
@@ -526,28 +526,28 @@ export function MarketingLanding() {
             <div className="max-w-xl">
               <p className="inline-flex items-center gap-2 rounded-full border border-sand bg-surface/55 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.13em] text-sienna">
                 <SparkleIcon className="size-4" />
-                Your next application can be easier
+                Skip the repeated forms
               </p>
               <h2 className="mt-7 text-4xl leading-[1.04] font-bold tracking-[-0.045em] text-espresso sm:text-5xl lg:text-6xl">
-                Upload once. Start applying everywhere.
+                Upload once. Apply to global remote jobs.
               </h2>
               <p className="mt-6 max-w-lg text-base leading-8 text-espresso/60 sm:text-lg">
-                Build your profile from your resume and see the remote jobs
-                that match you best.
+                Build your profile, review your matches, and start applications
+                when you are ready.
               </p>
               <Link
                 href="/register#register"
                 className="group mt-8 inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-sienna px-7 py-3 text-sm font-bold text-cream shadow-[0_16px_40px_rgba(98,65,55,0.24)] transition-all hover:-translate-y-0.5 hover:bg-espresso"
               >
                 <UploadTrayIcon className="size-5" />
-                Upload your resume
+                Start applying
                 <span className="transition-transform group-hover:translate-x-1">
                   <ArrowIcon />
                 </span>
               </Link>
 
               <div className="mt-8 flex flex-wrap gap-2.5">
-                {["Private & secure", "Worldwide jobs", "No facts invented"].map((item) => (
+                {["Global remote jobs", "Missing facts stay blank", "You stay in control"].map((item) => (
                   <span key={item} className="inline-flex items-center gap-2 rounded-full border border-sand/80 bg-surface/38 px-3 py-2 text-xs font-semibold text-espresso/62">
                     <CheckIcon className="size-4 text-sienna" />
                     {item}
@@ -598,9 +598,9 @@ export function MarketingLanding() {
 
               <ol className={styles.finalStepList}>
                 {[
-                  ["Upload", "Add your resume", 0],
-                  ["Build profile", "We extract key facts", 1],
-                  ["Find matches", "See worldwide roles", 2],
+                  ["Upload resume", "Add your resume", 0],
+                  ["Build profile", "Review extracted facts", 1],
+                  ["Find matches", "See global remote jobs", 2],
                 ].map(([title, description, iconIndex], index) => (
                   <li key={String(title)} className={styles.finalStepCard}>
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sienna text-xs font-bold text-cream shadow-sm">
@@ -638,7 +638,7 @@ export function MarketingLanding() {
 
         <footer className="flex flex-col gap-4 border-t border-sand/70 py-7 text-xs text-espresso/45 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-semibold text-espresso/60">apply.ink</p>
-          <p>Global remote applications, with you in control.</p>
+          <p>Apply to global remote jobs, with you in control.</p>
           <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">
             <Link href="/privacy" className="transition-colors hover:text-sienna">
               Privacy Policy

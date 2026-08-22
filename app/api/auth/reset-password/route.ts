@@ -21,14 +21,14 @@ export async function POST(request: Request) {
     }
     if (token.length < 32 || !(await resetPasswordWithToken(token, password))) {
       return Response.json(
-        { error: "This reset link is invalid or has expired." },
+        { error: "This reset link is invalid or has expired. Request a new link." },
         { status: 400 }
       );
     }
     return Response.json({ ok: true });
   } catch {
     return Response.json(
-      { error: "Could not reset the password." },
+      { error: "Could not reset the password. Request a new link and try again." },
       { status: 500 }
     );
   }

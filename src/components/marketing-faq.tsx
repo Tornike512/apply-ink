@@ -6,24 +6,24 @@ import styles from "./marketing-landing.module.css";
 
 const faqs = [
   {
-    question: "How does one-click applying work?",
+    question: "What happens after I click Start applying?",
     answer:
-      "Add as much information about yourself as you can. The more approved answers you save, the more application questions AI can complete. Apply Ink never invents numbers or missing facts. When your profile is ready, one click starts automatic applications for matching jobs.",
+      "One click starts applications for matching jobs. Apply Ink uses the details in your profile to answer application questions. The more answers you save, the fewer times it needs to pause. It does not invent numbers. If a fact is missing, it pauses.",
   },
   {
-    question: "Are the jobs really remote worldwide?",
+    question: "Can I work from anywhere?",
     answer:
-      "Yes. Apply Ink shows global remote jobs that can be done from anywhere. It does not include country-only remote roles, such as jobs marked \u201cRemote \u2014 Spain only.\u201d",
+      "Apply Ink only lists jobs marked as open worldwide. It does not include roles limited to one country, such as jobs marked \u201cRemote, Spain only.\u201d",
   },
   {
-    question: "What if an application needs me?",
+    question: "When do I need to step in?",
     answer:
-      "AI pauses that application and sends it to Messages. Open Messages from the sidebar to see which company needs another answer or a CAPTCHA. Complete that step yourself; AI handles the questions it already knows.",
+      "If an employer asks a new question or shows a CAPTCHA, Apply Ink pauses and puts the application in Messages. Open it there, complete the missing step, and submit the form. Apply Ink handles the questions it already knows.",
   },
   {
     question: "How do you protect my information?",
     answer:
-      "Apply Ink stores your account, profile, resume, and application data so the service can work. Passwords are hashed, connections use HTTPS, and sessions use secure HTTP-only cookies. AI requests ask OpenAI not to store generated responses. You can remove your resume or request deletion of your data.",
+      "Apply Ink stores your account, profile, resume, and application data so it can run the service. Passwords are hashed, connections use HTTPS, and sessions use secure HTTP-only cookies. Requests to OpenAI ask it not to store generated responses. You can remove your resume or ask us to delete your data.",
     privacyLink: true,
   },
 ] as const;
@@ -83,7 +83,7 @@ export function MarketingFaq() {
                       tabIndex={isOpen ? undefined : -1}
                       className="mt-3 inline-flex text-sm font-bold text-sienna underline decoration-sienna/30 underline-offset-4 transition-colors hover:text-espresso"
                     >
-                      Read the Privacy Policy
+                      Read our Privacy Policy
                     </Link>
                   )}
                 </div>

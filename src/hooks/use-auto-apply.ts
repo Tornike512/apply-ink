@@ -106,7 +106,7 @@ export function useAutoApply(
             time: timestamp(),
             title: "Daily limit reached",
             status: "limit",
-            note: `${AUTO_APPLY_RULES.dailyLimit} application actions prepared today`,
+            note: `${AUTO_APPLY_RULES.dailyLimit} applications processed today`,
           },
           ...entries,
         ]);
@@ -130,7 +130,7 @@ export function useAutoApply(
 
       if (decision.status === "ready") {
         try {
-          if (!onApplyRef.current) throw new Error("Application handler unavailable");
+          if (!onApplyRef.current) throw new Error("Could not start this application. Try again.");
           const attempt = await onApplyRef.current(job);
           activityStatus =
             attempt.application.status === "submitted"
@@ -145,7 +145,7 @@ export function useAutoApply(
           writeUsedToday(usedRef.current);
         } catch (error) {
           activityStatus = "error";
-          note = error instanceof Error ? error.message : "Application failed";
+          note = error instanceof Error ? error.message : "Could not start this application.";
         }
       }
 

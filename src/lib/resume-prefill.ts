@@ -181,9 +181,9 @@ function fallbackSkills(resumeText: string): string[] {
 export function defaultIntroductionFromSkills(skills: string[]): string {
   if (skills.length > 0) {
     const named = skills.slice(0, 5).join(", ");
-    return `I am a professional with experience in ${named}. I am interested in applying the experience described in my CV to a strong remote team.`;
+    return `My experience includes ${named}. I am looking for a remote role where I can use these skills and contribute to the team.`;
   }
-  return "I am interested in roles that match the experience and qualifications in my CV. I would welcome the opportunity to discuss how my background could support your team.";
+  return "I am looking for a remote role that matches the experience and qualifications in my resume.";
 }
 
 function contactFallback(resumeText: string): ResumePrefill {

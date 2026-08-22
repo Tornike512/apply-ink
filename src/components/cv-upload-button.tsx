@@ -39,19 +39,19 @@ export function CvUploadButton({ onOpenSettings }: CvUploadButtonProps) {
         error?: string;
       };
       if (!response.ok || !data.profile) {
-        throw new Error(data.error ?? "Could not upload your CV.");
+        throw new Error(data.error ?? "Could not upload your resume. Try again.");
       }
 
       queryClient.setQueryData(CANDIDATE_PROFILE_KEY, data.profile);
       setMessage(
         data.profile.tailoringReady
-          ? "CV uploaded. Your job matches are updating now."
+          ? "Resume uploaded. Your job matches are updating now."
           : data.profile.complete
-            ? "CV uploaded. Matches are updating; add the API key for tailoring."
-            : "CV uploaded. Matches are updating; add your details in Settings."
+            ? "Resume uploaded. Matches are updating. Job-specific resumes are unavailable right now."
+            : "Resume uploaded. Matches are updating. Add your details in Settings."
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not upload your CV.");
+      setMessage(error instanceof Error ? error.message : "Could not upload your resume. Try again.");
     } finally {
       setUploading(false);
     }
@@ -76,7 +76,7 @@ export function CvUploadButton({ onOpenSettings }: CvUploadButtonProps) {
         className="whitespace-nowrap"
       >
         <FileTextIcon width={17} height={17} />
-        {uploading ? "Uploading..." : "Upload your CV"}
+        {uploading ? "Uploading..." : "Upload your resume"}
       </Button>
       {profile?.resumeFileName && (
         <span className="max-w-48 truncate text-xs text-espresso/60">

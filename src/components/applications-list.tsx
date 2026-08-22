@@ -21,7 +21,7 @@ export function ApplicationsList({
     return (
       <Container variant="card" className="p-8 text-center">
         <p className="text-sm text-espresso/70">
-          No applications yet. Open a job and choose Apply with AI.
+          No applications yet. Choose a job, then select Start application.
         </p>
       </Container>
     );
@@ -51,7 +51,7 @@ export function ApplicationsList({
                 {job.title}
               </h3>
               <p className="truncate text-sm text-espresso/70">
-                {job.company} - {needsUser ? "updated" : "submitted"} {date}
+                {job.company} · {needsUser ? "updated" : "submitted"} {date}
               </p>
               {application.needsUserReason && (
                 <p className="mt-1 line-clamp-2 text-xs text-sienna">
@@ -67,7 +67,7 @@ export function ApplicationsList({
             </Badge>
             {application.tailoredResumeFileName && (
               <>
-                <Badge variant="success">Tailored CV</Badge>
+                <Badge variant="success">Job-specific resume</Badge>
                 <a
                   href={`/api/applications?resume=${encodeURIComponent(
                     application.id
@@ -76,7 +76,7 @@ export function ApplicationsList({
                   rel="noreferrer"
                   className="inline-flex items-center justify-center rounded-lg border border-sand bg-surface px-3 py-1.5 text-xs font-medium text-terracotta transition-colors hover:bg-sand/30"
                 >
-                  View CV
+                  View resume
                 </a>
               </>
             )}
@@ -87,7 +87,7 @@ export function ApplicationsList({
                   onClick={() => void onContinue(application)}
                   className="px-3 py-1.5 text-xs"
                 >
-                  Open assisted apply
+                  Continue application
                 </Button>
                 <Button
                   variant="secondary"
@@ -103,7 +103,7 @@ export function ApplicationsList({
               onClick={() => void onRemove(application.id)}
               className="px-3 py-1.5 text-xs"
             >
-              Remove
+              Remove application
             </Button>
           </Container>
         );

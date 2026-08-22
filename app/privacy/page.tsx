@@ -107,8 +107,9 @@ export default function PrivacyPage() {
           <p>
             Apply Ink relies on providers that process information only to
             deliver their part of the service. These currently include Vercel
-            for hosting, Neon for PostgreSQL storage, Google for authentication,
-            and OpenAI for optional resume extraction and tailoring features.
+            for hosting, Neon for PostgreSQL storage, Google for authentication
+            and optional scanned-resume recognition through Cloud Vision, and
+            OpenAI for optional resume extraction and tailoring features.
           </p>
           <p>
             When an AI feature is used, relevant resume text, eligible skills,

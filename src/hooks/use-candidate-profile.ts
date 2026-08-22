@@ -14,7 +14,7 @@ export async function loadCandidateProfile(): Promise<CandidateProfile> {
     profile?: CandidateProfile;
     error?: string;
   };
-  if (!response.ok) throw new Error(data.error ?? "Could not load your profile.");
+  if (!response.ok) throw new Error(data.error ?? "Could not load your profile. Refresh and try again.");
   return data.profile ?? EMPTY_CANDIDATE_PROFILE;
 }
 

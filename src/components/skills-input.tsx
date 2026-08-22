@@ -456,8 +456,9 @@ export function SkillsInput({
         </div>
       )}
       <p className="mt-1.5 text-xs font-normal leading-5 text-espresso/50">
-        Choose skills AI can use to match jobs and tailor ATS-friendly CVs.
-        Skills found in your CV are selected automatically, and you can remove any.
+        Choose the skills Apply Ink can use to match jobs and prepare job-specific
+        resumes. Skills found in your resume are selected automatically, and you
+        can remove any.
       </p>
     </div>
   );

@@ -30,6 +30,7 @@ import {
 } from "@/lib/user-session";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function text(formData: FormData, name: string, maxLength: number): string {
   const value = formData.get(name);
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
       return Response.json({ error: error.message }, { status: error instanceof DuplicateEmailError ? 409 : 400 });
     }
     return Response.json(
-      { error: "Could not create your account." },
+      { error: "Could not create your account. Try again." },
       { status: 500 }
     );
   }

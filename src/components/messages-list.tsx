@@ -20,7 +20,7 @@ export function MessagesList({
       <Container variant="card" className="p-8 text-center">
         <h2 className="text-base font-semibold text-espresso">You are all caught up</h2>
         <p className="mt-1 text-sm text-espresso/65">
-          Jobs that need your review, CAPTCHA, or final submit will appear here.
+          Applications that need a new answer, CAPTCHA, or final review will appear here.
         </p>
       </Container>
     );
@@ -30,8 +30,8 @@ export function MessagesList({
     <div className="flex flex-col gap-3">
       <Container variant="card" className="border border-sienna/20 p-4">
         <p className="text-sm text-espresso/70">
-          These applications need you. Open one, review the employer form, complete
-          any CAPTCHA, and click the final submit button.
+          These applications need you. Open one, complete any missing answer or
+          CAPTCHA, review the form, and submit it.
         </p>
       </Container>
       {applications.map((application) => {
@@ -55,7 +55,7 @@ export function MessagesList({
                 <Badge variant="sienna">Needs you</Badge>
                 {application.tailoredResumeFileName && (
                   <>
-                    <Badge variant="success">Tailored CV ready</Badge>
+                    <Badge variant="success">Job-specific resume ready</Badge>
                     <a
                       href={`/api/applications?resume=${encodeURIComponent(
                         application.id
@@ -64,7 +64,7 @@ export function MessagesList({
                       rel="noreferrer"
                       className="text-xs font-medium text-terracotta underline decoration-terracotta/40 underline-offset-2"
                     >
-                      View CV
+                      View resume
                     </a>
                   </>
                 )}
@@ -80,7 +80,7 @@ export function MessagesList({
               onClick={() => void onContinue(application)}
               className="px-3 py-1.5 text-xs"
             >
-              Open assisted apply
+              Continue application
             </Button>
             <Button
               variant="secondary"

@@ -243,7 +243,7 @@ export function JobFilters({
           aria-label="Search jobs"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search title, company, or skill..."
+          placeholder="Search by title, company, or skill"
           className="min-w-0 flex-1 bg-transparent text-sm text-espresso outline-none placeholder:text-espresso/45"
         />
       </label>
@@ -291,7 +291,7 @@ export function JobFilters({
           >
             <p className="text-sm font-bold text-espresso">Salary range</p>
             <p className="mt-1 text-xs leading-5 text-espresso/55">
-              Enter any USD rate. Hourly, monthly, and yearly values stay in sync.
+              Enter an amount in USD. Hourly, monthly, and yearly values update together.
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {SALARY_PERIODS.map((period) => (
@@ -348,7 +348,7 @@ export function JobFilters({
                 Cancel
               </Button>
               <Button type="button" variant="primary" onClick={selectSalary}>
-                Select
+                Use salary range
               </Button>
             </div>
           </div>

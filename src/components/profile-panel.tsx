@@ -34,7 +34,7 @@ export function ProfilePanel() {
 
   async function uploadResume(resume: File) {
     setResumeSaving(true);
-    setMessage("Reading and checking your CV...");
+    setMessage("Reading and checking your resume...");
     const formData = new FormData();
     formData.set("resume", resume);
     try {
@@ -48,12 +48,12 @@ export function ProfilePanel() {
         error?: string;
       };
       if (!response.ok || !data.profile) {
-        throw new Error(data.error ?? "Could not upload the CV.");
+        throw new Error(data.error ?? "Could not upload the resume. Try again.");
       }
       queryClient.setQueryData(CANDIDATE_PROFILE_KEY, data.profile);
-      setMessage("CV approved. It is readable and ready for applications.");
+      setMessage("Resume ready. Apply Ink can read it and use it in applications.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not upload the CV.");
+      setMessage(error instanceof Error ? error.message : "Could not upload the resume. Try again.");
     } finally {
       if (resumeInputRef.current) resumeInputRef.current.value = "";
       setResumeSaving(false);
@@ -73,12 +73,12 @@ export function ProfilePanel() {
         error?: string;
       };
       if (!response.ok || !data.profile) {
-        throw new Error(data.error ?? "Could not remove the CV.");
+        throw new Error(data.error ?? "Could not remove the resume. Try again.");
       }
       queryClient.setQueryData(CANDIDATE_PROFILE_KEY, data.profile);
-      setMessage("CV removed. Upload a replacement when you are ready.");
+      setMessage("Resume removed. Upload another resume when you are ready.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not remove the CV.");
+      setMessage(error instanceof Error ? error.message : "Could not remove the resume. Try again.");
     } finally {
       setResumeSaving(false);
     }
@@ -99,20 +99,20 @@ export function ProfilePanel() {
         error?: string;
       };
       if (!response.ok || !data.profile) {
-        throw new Error(data.error ?? "Could not save your profile.");
+        throw new Error(data.error ?? "Could not save your profile. Try again.");
       }
       queryClient.setQueryData(CANDIDATE_PROFILE_KEY, data.profile);
       setEditedPhone(null);
       setEditedSkills(null);
       setMessage(
         data.profile.tailoringReady
-          ? "Saved. Job matches are updating; CV tailoring is ready."
+          ? "Profile saved. Job matches are updating, and job-specific resumes are ready."
           : data.profile.complete
-            ? "Saved. Job matches are updating. Add OPENAI_API_KEY for CV tailoring."
-            : "Saved. Add your name, email, and CV to finish setup."
+            ? "Profile saved. Job matches are updating. Job-specific resumes are unavailable right now."
+            : "Profile saved. Add your name, email, and resume to finish setup."
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not save your profile.");
+      setMessage(error instanceof Error ? error.message : "Could not save your profile. Try again.");
     } finally {
       setSaving(false);
     }
@@ -122,7 +122,7 @@ export function ProfilePanel() {
     return (
       <Container variant="card" className="flex items-center gap-3 p-6">
         <Spinner />
-        <p className="text-sm text-espresso/70">Loading your local profile...</p>
+        <p className="text-sm text-espresso/70">Loading your profile...</p>
       </Container>
     );
   }
@@ -141,7 +141,7 @@ export function ProfilePanel() {
   const profileStatus = !profile.complete
     ? { label: "Setup needed", variant: "sand" as const }
     : !profile.tailoringConfigured
-      ? { label: "AI key needed", variant: "sienna" as const }
+      ? { label: "Job-specific resumes unavailable", variant: "sienna" as const }
       : { label: "Ready", variant: "success" as const };
   return (
     <Container variant="card" className="p-6">
@@ -149,13 +149,12 @@ export function ProfilePanel() {
         <div>
           <h2 className="text-xl font-bold text-espresso">Application profile</h2>
           <p className="mt-1 max-w-2xl text-sm text-espresso/65">
-            Your profile is saved to your account. Job matches update automatically
-            from your CV; AI tailoring runs only when you start an application.
+            Your profile is saved to your account. Matches update when you
+            change your resume. Apply Ink tailors a resume only after you start an application.
           </p>
           <p className="mt-2 text-xs font-medium text-sienna">
             {profile.applicationAnswerCount} of {profile.applicationAnswerTotal}{" "}
-            common employer answers saved. More answers unlock more hands-off
-            applications.
+            common employer answers saved. More saved answers mean fewer pauses.
           </p>
         </div>
         <Badge variant={profileStatus.variant}>{profileStatus.label}</Badge>
@@ -249,7 +248,7 @@ export function ProfilePanel() {
             name="resume"
             type="file"
             accept=".pdf,.doc,.docx,.rtf,.odt,.txt"
-            aria-label="Choose replacement CV"
+            aria-label="Choose replacement resume"
             disabled={resumeSaving}
             onChange={(event) => {
               const resume = event.currentTarget.files?.[0];
@@ -268,7 +267,7 @@ export function ProfilePanel() {
                 </svg>
               </span>
               <span className="min-w-0 flex-1 truncate text-xs font-semibold text-success">
-                {profile.resumeFileName} · approved
+                {profile.resumeFileName} · ready
               </span>
               <button
                 type="button"
@@ -276,7 +275,7 @@ export function ProfilePanel() {
                 disabled={resumeSaving}
                 className="rounded-md border border-success/30 bg-surface px-2.5 py-1.5 text-xs font-bold text-espresso disabled:opacity-50"
               >
-                {resumeSaving ? "Checking..." : "Replace"}
+                {resumeSaving ? "Checking..." : "Replace resume"}
               </button>
               <button
                 type="button"
@@ -284,7 +283,7 @@ export function ProfilePanel() {
                 disabled={resumeSaving}
                 className="rounded-md px-2.5 py-1.5 text-xs font-bold text-sienna disabled:opacity-50"
               >
-                Remove
+                Remove resume
               </button>
             </div>
           ) : (
@@ -295,8 +294,8 @@ export function ProfilePanel() {
               className={`mt-1 min-h-11 text-left ${inputClass} disabled:opacity-50`}
             >
               {resumeSaving
-                ? "Reading and checking your CV..."
-                : "Upload CV · PDF, DOC, DOCX, RTF, ODT, or TXT"}
+                ? "Reading and checking your resume..."
+                : "Upload resume · PDF, DOC, DOCX, RTF, ODT, or TXT"}
             </button>
           )}
           <span className="mt-1 block text-xs font-normal text-espresso/55">
@@ -304,7 +303,7 @@ export function ProfilePanel() {
           </span>
         </div>
         <div className="text-sm font-medium text-espresso md:col-span-2">
-          Skills AI may use in ATS-tailored CVs
+          Skills Apply Ink may use in job-specific resumes
           <SkillsInput value={skills} onChange={setEditedSkills} />
         </div>
         <label className="text-sm font-medium text-espresso md:col-span-2">
@@ -316,7 +315,7 @@ export function ProfilePanel() {
             className={`mt-1 resize-y ${inputClass}`}
           />
           <span className="mt-1 block text-xs font-normal text-espresso/55">
-            If this is blank, AI creates a truthful introduction from your CV.
+            Leave blank to let Apply Ink write a truthful introduction from your resume.
           </span>
         </label>
         <div className="my-2 h-px bg-sand/65 md:col-span-2" />
@@ -325,7 +324,7 @@ export function ProfilePanel() {
         </div>
         <div className="flex flex-wrap items-center gap-3 md:col-span-2">
           <Button type="submit" variant="primary" disabled={saving || resumeSaving}>
-            {saving ? "Saving..." : "Save application profile"}
+            {saving ? "Saving..." : "Save profile"}
           </Button>
           {message && (
             <p aria-live="polite" className="text-sm text-espresso/65">

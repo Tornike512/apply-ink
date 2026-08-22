@@ -35,13 +35,6 @@ import {
 } from "@/lib/job-filtering";
 import { JOBS, type Job } from "@/lib/jobs";
 
-const DEMO_NOTIFICATIONS = [
-  "A new remote role matches your profile.",
-  "Your tailored CV is ready for review.",
-  "Three new work-from-anywhere jobs were added.",
-  "An application needs a quick answer from you.",
-] as const;
-
 export default function DashboardPage() {
   const pathname = usePathname();
   const router = useRouter();
@@ -51,7 +44,7 @@ export default function DashboardPage() {
       "/dashboard/matches": "Matches",
       "/dashboard/applications": "Applications",
       "/dashboard/messages": "Messages",
-      "/dashboard/cv-wall": "CV Wall",
+      "/dashboard/cv-wall": "Resume",
       "/dashboard/settings": "Settings",
     } as Record<string, string>)[pathname] ?? "Jobs";
   const [search, setSearch] = useState("");
@@ -93,9 +86,9 @@ export default function DashboardPage() {
     setNotificationText((current) =>
       current
         ? null
-        : DEMO_NOTIFICATIONS[
-            Math.floor(Math.random() * DEMO_NOTIFICATIONS.length)
-          ]
+        : needsUserApplications.length > 0
+          ? `${needsUserApplications.length} application${needsUserApplications.length === 1 ? "" : "s"} need you in Messages.`
+          : "No new notifications."
     );
   }
 
@@ -159,7 +152,7 @@ export default function DashboardPage() {
         Matches: "/dashboard/matches",
         Applications: "/dashboard/applications",
         Messages: "/dashboard/messages",
-        "CV Wall": "/dashboard/cv-wall",
+        Resume: "/dashboard/cv-wall",
         Settings: "/dashboard/settings",
       } as Record<string, string>)[label] ?? "/dashboard/jobs";
     router.push(path);
@@ -332,13 +325,13 @@ export default function DashboardPage() {
             <StatCard
               icon={<TargetIcon width={20} height={20} />}
               value={highMatches}
-              label="High matches"
+              label="Strong matches"
             />
             <StatCard
               icon={<ZapIcon width={20} height={20} />}
               value={
                 <>
-                  Auto-apply
+                  Automatic applications
                   <span
                     aria-hidden="true"
                     className={`h-2 w-2 rounded-full ${
@@ -354,12 +347,12 @@ export default function DashboardPage() {
             <StatCard
               icon={<ClockIcon width={20} height={20} />}
               value={`${autoApply.dailyLimit} / day`}
-              label="Max auto-applies"
+              label="Daily limit"
             />
             <StatCard
               icon={<BookmarkIcon width={20} height={20} />}
-              value="24"
-              label="Rules saved"
+              value={profile.applicationAnswerCount}
+              label="Answers saved"
             />
           </div>
 
@@ -395,8 +388,8 @@ export default function DashboardPage() {
 
           <p className="px-1 text-xs text-espresso/60">
             {profile.cvUploaded
-              ? "Matches are personalized from your uploaded CV and update automatically."
-              : "Upload your CV to calculate personal match scores automatically."}
+              ? "Match scores use your uploaded resume and update automatically."
+              : "Upload your resume to see personal match scores."}
           </p>
 
           <div className="flex flex-col gap-3 pb-2">
@@ -407,14 +400,14 @@ export default function DashboardPage() {
               >
                 <Spinner />
                 <p className="text-sm text-espresso/70">
-                  Loading jobs — first visit builds the index from 100+ boards
-                  and can take a minute…
+                  Loading jobs. On your first visit, checking more than 100 job
+                  boards can take about a minute.
                 </p>
               </Container>
             )}
             {jobsQuery.isError && (
               <p className="text-xs text-espresso/60">
-                Live sources unavailable — showing sample jobs.
+                Live job sources are unavailable. Showing sample jobs.
               </p>
             )}
             {jobs.map((job) => (
@@ -428,7 +421,7 @@ export default function DashboardPage() {
             {!loadingJobs && jobs.length === 0 && (
               <Container variant="card" className="p-6 text-center">
                 <p className="text-sm text-espresso/70">
-                  No jobs match “{search}”. Try a different search.
+                  No jobs match “{search}”. Try another search or clear the filters.
                 </p>
               </Container>
             )}

@@ -130,7 +130,7 @@ async function generateContent(
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     throw new ResumeTailoringError(
-      "Add OPENAI_API_KEY to .env.local so Apply Ink can rewrite the CV safely."
+      "Resume tailoring is not available right now. Try again later."
     );
   }
 
@@ -152,7 +152,7 @@ async function generateContent(
   });
 
   if (!response.output_parsed) {
-    throw new ResumeTailoringError("The AI did not return a valid tailored CV.");
+    throw new ResumeTailoringError("Apply Ink could not create a valid job-specific resume.");
   }
   return validateTailoredResumeContent(response.output_parsed, job, profile);
 }
@@ -175,7 +175,7 @@ export function validateTailoredResumeContent(
   const requireMasterText = (value: string, label: string) => {
     if (value.trim() && !master.includes(comparable(value))) {
       throw new ResumeTailoringError(
-        `The generated CV changed the source ${label}, so it was rejected.`
+        `The job-specific resume changed your ${label}, so it was rejected.`
       );
     }
   };
@@ -202,7 +202,7 @@ export function validateTailoredResumeContent(
   for (const claim of new Set(numericClaims ?? [])) {
     if (!allowedNumbers.includes(comparable(claim))) {
       throw new ResumeTailoringError(
-        `The generated CV added an unsupported numeric claim (${claim}), so it was rejected.`
+        `The job-specific resume added a number not found in your resume (${claim}), so it was rejected.`
       );
     }
   }
@@ -285,7 +285,7 @@ export async function prepareTailoredResume(
   profile: StoredCandidateProfile
 ): Promise<StoredTailoredResume> {
   if (!profile.cvUploaded || !profile.resumeData || !profile.resumeText.trim()) {
-    throw new ResumeTailoringError("Upload a readable CV before applying.");
+    throw new ResumeTailoringError("Upload a readable resume before applying.");
   }
 
   const output = getTailoredResumeCacheDetails(job, profile);
@@ -299,7 +299,7 @@ export async function prepareTailoredResume(
     const fullName = `${profile.firstName} ${profile.lastName}`.trim();
     for (const required of [fullName, profile.email, job.title]) {
       if (required && !extracted.toLowerCase().includes(required.toLowerCase())) {
-        throw new Error(`Generated CV is missing required text: ${required}`);
+        throw new Error(`The job-specific resume is missing required text: ${required}`);
       }
     }
 
@@ -314,8 +314,8 @@ export async function prepareTailoredResume(
     if (error instanceof ResumeTailoringError) throw error;
     throw new ResumeTailoringError(
       error instanceof Error
-        ? `Could not create the tailored CV: ${error.message}`
-        : "Could not create the tailored CV."
+        ? `Could not create the job-specific resume: ${error.message}`
+        : "Could not create the job-specific resume."
     );
   }
 }

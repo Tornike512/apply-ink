@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { label: "Matches", icon: TargetIcon },
   { label: "Applications", icon: FileTextIcon },
   { label: "Messages", icon: BellIcon },
-  { label: "CV Wall", icon: IdCardIcon },
+  { label: "Resume", icon: IdCardIcon },
   { label: "Settings", icon: SettingsIcon },
 ];
 

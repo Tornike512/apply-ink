@@ -8,9 +8,9 @@ import { googleAuthConfigured } from "@/lib/google-auth";
 import { phoneCountryFromHeaders } from "@/lib/phone-number";
 
 const GOOGLE_ERRORS: Record<string, string> = {
-  google_not_configured: "Google sign-in is not configured yet. You can still register with email.",
-  google_cancelled: "Google sign-in was cancelled or expired. Please try again.",
-  google_failed: "Google could not sign you in. Please try again or use email.",
+  google_not_configured: "Google sign-in is not available right now. Use email instead.",
+  google_cancelled: "Google sign-in was cancelled or expired. Try again.",
+  google_failed: "Google could not sign you in. Try again or use email.",
 };
 
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {

@@ -76,5 +76,8 @@ export function isTrustedMutation(request: Request): boolean {
 }
 
 export function untrustedMutationResponse(): Response {
-  return Response.json({ error: "This request was rejected." }, { status: 403 });
+  return Response.json(
+    { error: "This action was blocked. Refresh the page and try again." },
+    { status: 403 }
+  );
 }

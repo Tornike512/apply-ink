@@ -38,11 +38,11 @@ export function LoginForm({
         headers: { "content-type": "application/json", "x-apply-ink": "1" },
         body: JSON.stringify({ email: data.get("email"), password: data.get("password") }),
       });
-      if (!response.ok) throw new Error(await errorMessage(response, "Could not log in."));
+      if (!response.ok) throw new Error(await errorMessage(response, "Could not log in. Try again."));
       router.replace(nextPath);
       router.refresh();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not log in.");
+      setError(reason instanceof Error ? reason.message : "Could not log in. Try again.");
       setPending(false);
     }
   }
@@ -72,12 +72,12 @@ export function LoginForm({
       </a>
       {!googleEnabled && (
         <p className="-mt-2 text-xs text-sienna">
-          Google sign-in activates after its deployment keys are added.
+          Google sign-in is not available right now. Use email instead.
         </p>
       )}
       <div className="flex items-center gap-3" aria-hidden="true">
         <span className="h-px flex-1 bg-sand" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-espresso/35">or use email</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-espresso/35">or continue with email</span>
         <span className="h-px flex-1 bg-sand" />
       </div>
       <label className="text-sm font-medium text-espresso">Email
@@ -129,7 +129,7 @@ export function ForgotPasswordForm() {
         <input name="email" type="email" autoComplete="email" required className={inputClass} />
       </label>
       {message && <p aria-live="polite" className="text-sm leading-6 text-espresso/65">{message}</p>}
-      {resetPath && <Link href={resetPath} className="rounded-xl border border-success/30 bg-success/8 px-4 py-3 text-center text-sm font-bold text-success">Open local reset link</Link>}
+      {resetPath && <Link href={resetPath} className="rounded-xl border border-success/30 bg-success/8 px-4 py-3 text-center text-sm font-bold text-success">Open reset link</Link>}
       <button type="submit" disabled={pending} className={buttonClass}>{pending ? "Preparing link..." : "Reset password"}</button>
     </form>
   );
@@ -146,7 +146,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     const password = String(data.get("password") ?? "");
     const confirmation = String(data.get("confirmation") ?? "");
     if (password !== confirmation) {
-      setError("Passwords do not match.");
+      setError("Passwords do not match. Enter the same password twice.");
       return;
     }
     setPending(true);

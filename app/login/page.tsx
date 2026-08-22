@@ -6,9 +6,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { googleAuthConfigured } from "@/lib/google-auth";
 
 const GOOGLE_ERRORS: Record<string, string> = {
-  google_not_configured: "Google sign-in is not configured yet. Log in with email for now.",
-  google_cancelled: "Google sign-in was cancelled or expired. Please try again.",
-  google_failed: "Google could not sign you in. Please try again or use email.",
+  google_not_configured: "Google sign-in is not available right now. Use email instead.",
+  google_cancelled: "Google sign-in was cancelled or expired. Try again.",
+  google_failed: "Google could not sign you in. Try again or use email.",
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
@@ -25,10 +25,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <AuthCard
         eyebrow="Welcome back"
         title="Log in to Apply Ink"
-        description="Your saved answers, applications, and matching jobs are waiting."
-        footer={<>New here? <AuthLink href="/register">Create your account</AuthLink></>}
+        description="Open your saved applications, messages, and matching jobs."
+        footer={<>New to Apply Ink? <AuthLink href="/register">Create an account</AuthLink></>}
       >
-        {reset && <p className="mb-4 rounded-xl border border-success/25 bg-success/8 px-4 py-3 text-sm text-success">Password updated. Log in with your new password.</p>}
+        {reset && <p className="mb-4 rounded-xl border border-success/25 bg-success/8 px-4 py-3 text-sm text-success">Password changed. Log in with your new password.</p>}
         <LoginForm
           nextPath={nextPath}
           googleEnabled={googleAuthConfigured()}

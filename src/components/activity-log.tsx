@@ -26,7 +26,7 @@ export function ActivityLog({ entries }: ActivityLogProps) {
       <ul aria-live="polite" className="max-h-64 overflow-y-auto">
         {entries.length === 0 && (
           <li className="py-2 text-sm text-espresso/60">
-            Waiting for the first job…
+            No applications started yet.
           </li>
         )}
         {entries.map((entry) => {

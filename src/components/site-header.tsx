@@ -18,7 +18,7 @@ export async function SiteHeader() {
         >
           {[
             ["How it works", "/#how-it-works"],
-            ["Safety & control", "/#safety-and-control"],
+            ["Safety and control", "/#safety-and-control"],
             ["FAQ", "/#faq"],
           ].map(([label, href]) => (
             <Link

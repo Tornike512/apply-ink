@@ -11,7 +11,7 @@ export default async function ResetPasswordPage({ searchParams }: PageProps<"/re
       <AuthCard
         eyebrow="Account recovery"
         title="Choose a new password"
-        description={token ? "This will sign out existing sessions for your account." : "The reset token is missing. Request a fresh link to continue."}
+        description={token ? "Changing your password signs out your other sessions." : "This reset link is missing information. Request a new link."}
         footer={<AuthLink href="/forgot-password">Request another reset link</AuthLink>}
       >
         <ResetPasswordForm token={token} />

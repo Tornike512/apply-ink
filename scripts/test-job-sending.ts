@@ -448,7 +448,7 @@ const cases: ManualTestCase[] = [
         resumeFieldsFromFile(file),
         (error) =>
           error instanceof ResumeUploadError &&
-          /No usable CV text was found/.test(error.message)
+          /No (?:usable CV|readable resume) text was found/.test(error.message)
       );
     },
   },
@@ -483,10 +483,9 @@ const cases: ManualTestCase[] = [
     },
   },
   {
-    id: "cv-image-only-pdf",
-    kind: "known-gap",
-    description: "A PDF without extractable text is rejected because OCR is not installed.",
-    failureMeans: "The current no-OCR limitation changed and must be reviewed.",
+    id: "cv-invalid-pdf",
+    description: "A malformed PDF is rejected before text extraction or OCR.",
+    failureMeans: "A malformed file could reach profile storage or an external OCR service.",
     async run() {
       const file = new File(
         [Buffer.from("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF")],
@@ -508,7 +507,7 @@ const cases: ManualTestCase[] = [
         resumeFieldsFromFile(file),
         (error) =>
           error instanceof ResumeUploadError &&
-          /does not match its file extension/.test(error.message)
+          /does not match.*extension/.test(error.message)
       );
     },
   },
@@ -582,7 +581,8 @@ const cases: ManualTestCase[] = [
       await assert.rejects(
         prepareTailoredResume(jobFor("Test"), profile),
         (error) =>
-          error instanceof ResumeTailoringError && /readable CV/.test(error.message)
+          error instanceof ResumeTailoringError &&
+          /readable (?:CV|resume)/.test(error.message)
       );
     },
   },
@@ -676,7 +676,7 @@ const cases: ManualTestCase[] = [
       const job = jobFor("Test");
       const result = await postRoute({ job, via: "auto", openBrowser: false });
       assert.equal(applicationStatus(result), "needs_user");
-      assert.match(result.body.note, /Upload a readable CV/);
+      assert.match(result.body.note, /Upload a readable (?:CV|resume)/);
       assert.equal((await getApplicationByJobId(context.sessionId, job.id))?.status, "needs_user");
     },
   },
@@ -724,13 +724,13 @@ const cases: ManualTestCase[] = [
       });
       assert.equal(result.response.status, 429);
       assert.equal(applicationStatus(result), "needs_user");
-      assert.match(result.body.note, /Daily AI tailoring limit reached/);
+      assert.match(result.body.note, /(?:Daily AI tailoring|application) limit/i);
     },
   },
   {
     id: "route-missing-openai-key",
     description: "An uncached job without OPENAI_API_KEY stops safely at Needs you.",
-    failureMeans: "Missing AI configuration is hidden or becomes an unsafe submission attempt.",
+    failureMeans: "Missing AI configuration becomes an unsafe submission attempt.",
     async run() {
       await resetDatabaseState();
       await saveReadyDatabaseProfile();
@@ -741,7 +741,7 @@ const cases: ManualTestCase[] = [
         openBrowser: false,
       });
       assert.equal(applicationStatus(result), "needs_user");
-      assert.match(result.body.note, /OPENAI_API_KEY/);
+      assert.match(result.body.note, /tailoring is not available/i);
     },
   },
   {

@@ -21,8 +21,8 @@ const YES_NO_OPTIONS = [
 
 const SPONSORSHIP_OPTIONS = [
   { value: "", label: "Select an answer" },
-  { value: "no", label: "No — selected countries only" },
-  { value: "yes", label: "Yes — outside selected countries" },
+  { value: "no", label: "No, only in selected countries" },
+  { value: "yes", label: "Yes, outside selected countries" },
 ] as const;
 
 const NOTICE_PERIOD_OPTIONS = [
@@ -138,8 +138,8 @@ export function ApplicationQuestionFields({
           Work authorization and timing
         </legend>
         <p className="mt-1 text-sm leading-6 text-espresso/60">
-          This does not mean you can work in every country. Select only countries
-          where you already have citizenship, residency, or valid work permission.
+          Worldwide remote jobs may still ask where you can legally work. Select
+          only countries where you have citizenship, residency, or work permission.
         </p>
         <p className="mt-2 text-xs text-espresso/50">
           <span className="font-bold text-terracotta">*</span> Required to continue.
@@ -166,8 +166,8 @@ export function ApplicationQuestionFields({
               className="mt-1.5 sm:mt-0"
             />
             <p className="mt-1.5 text-xs font-normal leading-5 text-espresso/50">
-              “Yes” means AI will not claim you can work everywhere; it will keep
-              applications within your selected countries unless sponsorship is offered.
+              Choose Yes if you need sponsorship outside the countries above.
+              Apply Ink will not claim that you can work everywhere.
             </p>
           </div>
           <div className="grid content-start text-sm font-medium text-espresso sm:grid-rows-[2.75rem_auto_auto]">
@@ -194,8 +194,8 @@ export function ApplicationQuestionFields({
           Questions employers often ask
         </legend>
         <p className="mt-1 text-sm leading-6 text-espresso/60">
-          These quick facts stop AI from guessing and unlock more automatic
-          submissions.
+          These answers stop Apply Ink from guessing and let more applications
+          continue without you.
         </p>
         <div className="mt-4 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <label className="grid content-start text-sm font-medium text-espresso sm:grid-rows-[2.75rem_auto]">
@@ -261,7 +261,7 @@ export function ApplicationQuestionFields({
           </h3>
           <p className="mt-1 text-sm leading-6 text-espresso/60">
             Some employers ask these equal-opportunity questions. They are optional,
-            never inferred from your CV, and never used to match or rank jobs.
+            never taken from your resume, and never used to match or rank jobs.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="text-sm font-medium text-espresso">
@@ -282,7 +282,7 @@ export function ApplicationQuestionFields({
                 options={RACE_OPTIONS}
                 values={raceEthnicities}
                 onValuesChange={setRaceEthnicities}
-                placeholder="Optional — choose any that apply"
+                placeholder="Optional, choose any that apply"
               />
             </div>
             <div className="text-sm font-medium text-espresso">
@@ -313,7 +313,7 @@ export function ApplicationQuestionFields({
         <fieldset>
           <input type="hidden" name="permissionsPresent" value="1" />
           <legend className="text-lg font-bold text-espresso">
-            Hands-off application rules
+            Automatic application rules
           </legend>
           <p className="mt-1 text-sm leading-6 text-espresso/60">
             You stay in control of what Apply Ink may accept or submit for you.
@@ -328,10 +328,10 @@ export function ApplicationQuestionFields({
               />
               <span>
                 <span className="block text-sm font-semibold text-espresso">
-                  Submit complete applications automatically <span className="font-normal text-espresso/45">(optional)</span>
+                  Submit complete applications for me <span className="font-normal text-espresso/45">(optional)</span>
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-espresso/55">
-                  Only when every required answer comes from this profile or your CV.
+                  Only when every required answer comes from your profile or resume.
                 </span>
               </span>
             </label>
@@ -344,10 +344,10 @@ export function ApplicationQuestionFields({
               />
               <span>
                 <span className="block text-sm font-semibold text-espresso">
-                  Accept privacy notices required to apply <span className="font-normal text-espresso/45">(optional)</span>
+                  Accept required privacy notices <span className="font-normal text-espresso/45">(optional)</span>
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-espresso/55">
-                  Optional marketing and talent-pool agreements remain off.
+                  Marketing and talent-pool options stay off.
                 </span>
               </span>
             </label>
