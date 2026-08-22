@@ -22,6 +22,7 @@
     "job-identity:test": "node --import tsx scripts/test-job-identity.ts",
     "resume-prefill:test": "node --conditions react-server --import tsx scripts/test-resume-prefill.ts",
     "resume-formats:test": "node --conditions react-server --import tsx scripts/test-resume-formats.ts",
+    "ocr:test": "node --conditions react-server --import tsx scripts/test-google-vision-ocr.ts",
     "skills:test": "node --conditions react-server --import tsx scripts/test-skills.ts",
     "job-sending:test": "node --env-file-if-exists=.env.development.local --env-file-if-exists=.env.local --conditions react-server --import tsx scripts/test-job-sending.ts",
     "hooks:install": "node scripts/install-git-hooks.mjs",
@@ -30,6 +31,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^0.1.100",
     "@tanstack/react-query": "^5.101.4",
+    "@vercel/oidc": "^3.8.5",
     "better-sqlite3": "^13.0.3",
     "google-auth-library": "^11.0.2",
     "libphonenumber-js": "^1.13.11",

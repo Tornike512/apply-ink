@@ -9,6 +9,19 @@ import {
 const resumeText =
   "Jordan Candidate is a senior product engineer with TypeScript, React, Node.js, PostgreSQL, production AI systems, remote collaboration, and ten years of software delivery experience.";
 
+const originalVisionEnvironment = {
+  projectId: process.env.GCP_PROJECT_ID,
+  projectNumber: process.env.GCP_PROJECT_NUMBER,
+  serviceAccountEmail: process.env.GCP_SERVICE_ACCOUNT_EMAIL,
+  poolId: process.env.GCP_WORKLOAD_IDENTITY_POOL_ID,
+  providerId: process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID,
+};
+delete process.env.GCP_PROJECT_ID;
+delete process.env.GCP_PROJECT_NUMBER;
+delete process.env.GCP_SERVICE_ACCOUNT_EMAIL;
+delete process.env.GCP_WORKLOAD_IDENTITY_POOL_ID;
+delete process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID;
+
 function blobBytes(buffer: Buffer): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(buffer);
 }
@@ -151,13 +164,13 @@ async function main() {
     );
   });
 
-  await check("image-only PDF is rejected", async () => {
+  await check("image-only PDF is rejected when OCR is not configured", async () => {
     const emptyPdf = await createPdf(" ");
     await expectUploadError(
       resumeFieldsFromFile(
         new File([blobBytes(emptyPdf)], "image-only.pdf", { type: "application/pdf" })
       ),
-      /No usable CV text/
+      /No (?:usable CV|readable resume) text/
     );
   });
 
@@ -166,7 +179,7 @@ async function main() {
       resumeFieldsFromFile(
         new File(["Too short"], "short.txt", { type: "text/plain" })
       ),
-      /No usable CV text/
+      /No (?:usable CV|readable resume) text/
     );
   });
 
@@ -184,7 +197,7 @@ async function main() {
       resumeFieldsFromFile(
         new File([resumeText], "resume.txt", { type: "image/png" })
       ),
-      /does not match its file extension/
+      /does not match.*extension/
     );
   });
 
@@ -211,7 +224,20 @@ async function main() {
   console.log(JSON.stringify({ passed: passed.length, checks: passed }));
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    for (const [name, value] of Object.entries({
+      GCP_PROJECT_ID: originalVisionEnvironment.projectId,
+      GCP_PROJECT_NUMBER: originalVisionEnvironment.projectNumber,
+      GCP_SERVICE_ACCOUNT_EMAIL: originalVisionEnvironment.serviceAccountEmail,
+      GCP_WORKLOAD_IDENTITY_POOL_ID: originalVisionEnvironment.poolId,
+      GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID: originalVisionEnvironment.providerId,
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });

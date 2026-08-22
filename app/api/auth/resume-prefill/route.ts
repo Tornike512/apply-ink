@@ -8,6 +8,7 @@ import {
 } from "@/lib/user-session";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   if (!isTrustedMutation(request)) return untrustedMutationResponse();
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
 
     if (!resumeText.trim()) {
       return Response.json(
-        { error: "Upload a readable CV before filling answers." },
+        { error: "Upload a readable resume before filling answers." },
         { status: 400 }
       );
     }
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
         error:
           error instanceof ResumeUploadError
             ? error.message
-            : "Could not read answers from this CV.",
+            : "Could not read answers from this resume. Try again.",
       },
       { status: error instanceof ResumeUploadError ? 400 : 500 }
     );

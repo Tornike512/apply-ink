@@ -5,6 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseOffice } from "officeparser";
 import WordExtractor from "word-extractor";
+import { extractScannedPdfText } from "@/lib/google-vision-ocr";
 
 export const RESUME_EXTENSIONS = new Set([
   ".pdf",
@@ -16,6 +17,11 @@ export const RESUME_EXTENSIONS = new Set([
 ]);
 
 const MAX_RESUME_TEXT_CHARS = 100_000;
+const MIN_RESUME_TEXT_CHARS = 80;
+
+type ResumeTextExtractionOptions = {
+  ocrPdf?: (buffer: Buffer) => Promise<string | null>;
+};
 
 async function ensurePdfGlobals(): Promise<void> {
   const runtimeGlobals = globalThis as unknown as Record<string, unknown>;
@@ -37,11 +43,12 @@ function normalizeText(value: string): string {
 
 export async function extractResumeText(
   buffer: Buffer,
-  fileName: string
+  fileName: string,
+  options: ResumeTextExtractionOptions = {}
 ): Promise<string> {
   const extension = path.extname(fileName).toLowerCase();
   if (!RESUME_EXTENSIONS.has(extension)) {
-    throw new Error("CV must be a PDF, DOC, DOCX, RTF, ODT, or TXT file.");
+    throw new Error("Resume must be a PDF, DOC, DOCX, RTF, ODT, or TXT file.");
   }
 
   let text = "";
@@ -79,14 +86,24 @@ export async function extractResumeText(
     throw new Error(
       extension === ".pdf"
         ? "Could not read this PDF. Upload a valid, text-based PDF."
-        : "Could not read this CV document. Try exporting it as a PDF or DOCX file."
+        : "Could not read this resume. Export it as a PDF or DOCX file and try again."
     );
   }
 
-  const normalized = normalizeText(text);
-  if (normalized.length < 80) {
+  let normalized = normalizeText(text);
+  if (extension === ".pdf" && normalized.length < MIN_RESUME_TEXT_CHARS) {
+    try {
+      const ocrText = await (options.ocrPdf ?? extractScannedPdfText)(buffer);
+      if (ocrText) normalized = normalizeText(ocrText);
+    } catch {
+      throw new Error(
+        "Could not scan this PDF right now. Upload a text-based PDF or DOCX, or try again."
+      );
+    }
+  }
+  if (normalized.length < MIN_RESUME_TEXT_CHARS) {
     throw new Error(
-      "No usable CV text was found. Upload a text-based PDF or document."
+      "No readable resume text was found. Upload a text-based PDF or DOCX."
     );
   }
   return normalized;

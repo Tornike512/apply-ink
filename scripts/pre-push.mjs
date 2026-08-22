@@ -153,6 +153,7 @@ async function main() {
     ],
     ["Resume prefill tests", () => runNpmScript("resume-prefill:test")],
     ["Resume format tests", () => runNpmScript("resume-formats:test")],
+    ["Scanned PDF OCR tests", () => runNpmScript("ocr:test")],
     ["Skill suggestion tests", () => runNpmScript("skills:test")],
     ["Job identity tests", () => runNpmScript("job-identity:test")],
     ["Job filtering tests", () => runNpmScript("job-filtering:test")],
