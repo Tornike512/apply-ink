@@ -433,7 +433,7 @@ async function main() {
     await page.getByRole("button", { name: "Select skills" }).click();
     await skillListbox.waitFor({ state: "detached" });
     await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page.getByText(/Choose at least one skill/).waitFor();
+    await page.getByRole("alert").getByText("Skills", { exact: true }).waitFor();
     await page.getByRole("combobox", { name: "Choose skills" }).click();
     await skillListbox.getByRole("option", { name: "TypeScript", exact: true }).click();
     await skillListbox.getByRole("option", { name: "React", exact: true }).click();
@@ -540,7 +540,10 @@ async function main() {
       throw new Error("Sponsorship and notice-period controls are not aligned.");
     }
     await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByText("Select your notice period.", { exact: true }).waitFor();
+    await page
+      .getByRole("alert")
+      .getByText("Notice period", { exact: true })
+      .waitFor();
     await page.getByRole("combobox", { name: "Notice period" }).click();
     await page
       .getByRole("listbox", { name: "Notice period" })
