@@ -127,37 +127,44 @@ export function PositionPicker({ value, onChange }: PositionPickerProps) {
         className="flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-sand bg-surface px-3.5 py-2.5 text-left text-sm text-espresso outline-none transition-colors hover:border-terracotta focus:border-terracotta"
       >
         <SearchIcon width={18} height={18} className="shrink-0 text-espresso/50" />
-        <span className="grid min-w-0 flex-1 grid-cols-2 items-center gap-1.5">
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
           {value.length === 0 ? (
-            <span className="col-span-2 text-espresso/45">Select positions</span>
+            <span className="text-espresso/45">Select positions</span>
           ) : (
-            value.map((position) => (
-              <span
-                key={position}
-                className="inline-flex w-fit max-w-full min-w-0 justify-self-start items-center gap-1 rounded-full bg-terracotta/20 px-2.5 py-1 text-xs font-semibold text-sienna"
-              >
-                <span className="min-w-0 whitespace-nowrap">{position}</span>
+            <>
+              {value.slice(0, 2).map((position) => (
                 <span
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Remove ${position}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    togglePosition(position);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
+                  key={position}
+                  className="inline-flex items-center gap-1 rounded-full bg-terracotta/20 px-2.5 py-1 text-xs font-semibold text-sienna"
+                >
+                  <span className="whitespace-nowrap">{position}</span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Remove ${position}`}
+                    onClick={(event) => {
                       event.stopPropagation();
                       togglePosition(position);
-                    }
-                  }}
-                  className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-sienna/20"
-                >
-                  <CloseIcon width={12} height={12} />
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        togglePosition(position);
+                      }
+                    }}
+                    className="cursor-pointer rounded-full p-0.5 transition-colors hover:bg-sienna/20"
+                  >
+                    <CloseIcon width={10} height={10} />
+                  </span>
                 </span>
-              </span>
-            ))
+              ))}
+              {value.length > 2 && (
+                <span className="inline-flex items-center rounded-full bg-terracotta/20 px-2.5 py-1 text-xs font-semibold text-sienna">
+                  +{value.length - 2}
+                </span>
+              )}
+            </>
           )}
         </span>
         <svg

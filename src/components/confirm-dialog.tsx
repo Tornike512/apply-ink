@@ -43,7 +43,7 @@ export function ConfirmDialog({
       <Container
         variant="card"
         onClick={(e) => e.stopPropagation()}
-        className={`flex w-full max-w-5xl flex-col gap-5 p-5 sm:p-7 ${className ?? ""}`}
+        className={`flex w-full max-w-3xl flex-col gap-5 p-5 sm:p-7 ${className ?? ""}`}
       >
         <div className="flex items-start gap-4">
           {icon && (

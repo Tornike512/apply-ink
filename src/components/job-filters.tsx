@@ -30,6 +30,7 @@ type JobFiltersProps = {
   filters: JobFilterState;
   onFiltersChange: (filters: JobFilterState) => void;
   showSearch?: boolean;
+  onClearAll?: () => void;
 };
 
 type SalaryBoundary = "min" | "max";
@@ -109,6 +110,7 @@ export function JobFilters({
   filters,
   onFiltersChange,
   showSearch = true,
+  onClearAll,
 }: JobFiltersProps) {
   const salaryRef = useRef<HTMLDivElement>(null);
   const [salaryOpen, setSalaryOpen] = useState(false);
@@ -261,19 +263,16 @@ export function JobFilters({
     closeSalary();
   }
 
-  const moreFilterCount =
-    Number(filters.postedWithinDays > 0) + Number(filters.minMatch > 0);
   const anyFilterActive =
-    filters.role !== DEFAULT_JOB_FILTERS.role ||
-    filters.location !== DEFAULT_JOB_FILTERS.location ||
     filters.minSalary !== null ||
     filters.maxSalary !== null ||
-    moreFilterCount > 0;
+    filters.postedWithinDays > 0 ||
+    filters.minMatch > 0;
 
   return (
-    <div className="flex flex-wrap items-stretch gap-3">
+    <div className="flex flex-col gap-4">
       {showSearch && (
-        <label className="flex min-w-0 flex-1 basis-64 items-center gap-2.5 rounded-xl border border-sand bg-surface px-3.5 py-2.5">
+        <label className="flex min-w-0 items-center gap-2.5 rounded-xl border border-sand bg-surface px-3.5 py-2.5">
           <SearchIcon width={18} height={18} className="shrink-0 text-espresso/50" />
           <input
             type="search"
@@ -286,155 +285,100 @@ export function JobFilters({
         </label>
       )}
 
-      <Dropdown
-        ariaLabel="Role"
-        value={filters.role}
-        onValueChange={(value) => update({ role: value as JobRole })}
-        options={JOB_ROLE_OPTIONS}
-        menuClassName="w-64"
-      />
-
-      <Dropdown
-        ariaLabel="Location"
-        value={filters.location}
-        onValueChange={(value) => update({ location: value as JobLocation })}
-        options={JOB_LOCATION_OPTIONS}
-        prefix={
-          <MapPinIcon
-            width={16}
-            height={16}
-            className="shrink-0 text-espresso/60"
-          />
-        }
-        menuClassName="w-64"
-      />
-
-      <div ref={salaryRef} className="relative">
-        <button
-          type="button"
-          aria-label="Salary"
-          aria-haspopup="dialog"
-          aria-expanded={salaryMounted && salaryOpen}
-          onClick={openSalary}
-          className={`${controlClass} h-full text-sm font-medium text-espresso`}
-        >
-          <DollarSignIcon width={16} height={16} className="text-espresso/60" />
-          {salaryLabel(filters)}
-        </button>
-        {salaryMounted && (
-          <div
-            role="dialog"
-            aria-label="Salary range"
-            className={`absolute top-full right-0 z-30 mt-2 w-[min(42rem,calc(100vw-2rem))] rounded-2xl border border-sand bg-surface p-4 shadow-[0_18px_50px_rgba(78,47,36,0.18)] transition-[opacity,transform] duration-[160ms] motion-reduce:transition-none ${salaryOpen ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"}`}
-          >
-            <p className="text-sm font-bold text-espresso">Salary range</p>
-            <p className="mt-1 text-xs leading-5 text-espresso/55">
-              Enter an amount in USD. Hourly, monthly, and yearly values update together.
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              {SALARY_PERIODS.map((period) => (
-                <fieldset
-                  key={period.value}
-                  className="rounded-xl border border-sand/80 p-3"
-                >
-                  <legend className="px-1 text-xs font-bold text-espresso">
-                    {period.label}
-                  </legend>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(["min", "max"] as const).map((boundary) => (
-                      <label
-                        key={boundary}
-                        className="text-[11px] font-semibold text-espresso/70"
-                      >
-                        {boundary === "min" ? "Minimum" : "Maximum"}
-                        <input
-                          type="number"
-                          min={0}
-                          step={period.step}
-                          inputMode="decimal"
-                          aria-label={`${
-                            boundary === "min" ? "Minimum" : "Maximum"
-                          } ${period.value} salary`}
-                          placeholder={
-                            boundary === "min"
-                              ? period.minPlaceholder
-                              : period.maxPlaceholder
-                          }
-                          value={salaryDrafts[period.value][boundary]}
-                          onChange={(event) =>
-                            updateSalaryDraft(
-                              period.value,
-                              boundary,
-                              event.target.value
-                            )
-                          }
-                          className={inputClass}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
-            </div>
-            {salaryError && (
-              <p role="alert" className="mt-2 text-xs text-sienna">
-                {salaryError}
-              </p>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={cancelSalary}>
-                Cancel
-              </Button>
-              <Button type="button" variant="primary" onClick={selectSalary}>
-                Use salary range
-              </Button>
-            </div>
-          </div>
+      <div ref={salaryRef} className="rounded-2xl border border-sand/70 bg-surface/65 p-4">
+        <p className="text-sm font-bold text-espresso">Salary</p>
+        <p className="mt-1 text-xs leading-5 text-espresso/55">
+          Enter an amount in USD. Hourly, monthly, and yearly values update together.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {SALARY_PERIODS.map((period) => (
+            <fieldset
+              key={period.value}
+              className="rounded-xl border border-sand/80 p-3"
+            >
+              <legend className="px-1 text-xs font-bold text-espresso">
+                {period.label}
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {(["min", "max"] as const).map((boundary) => (
+                  <label
+                    key={boundary}
+                    className="text-[11px] font-semibold text-espresso/70"
+                  >
+                    {boundary === "min" ? "Minimum" : "Maximum"}
+                    <input
+                      type="number"
+                      min={0}
+                      step={period.step}
+                      inputMode="decimal"
+                      aria-label={`${
+                        boundary === "min" ? "Minimum" : "Maximum"
+                      } ${period.value} salary`}
+                      placeholder={
+                        boundary === "min"
+                          ? period.minPlaceholder
+                          : period.maxPlaceholder
+                      }
+                      value={salaryDrafts[period.value][boundary]}
+                      onChange={(event) =>
+                        updateSalaryDraft(
+                          period.value,
+                          boundary,
+                          event.target.value
+                        )
+                      }
+                      className={inputClass}
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+        {salaryError && (
+          <p role="alert" className="mt-2 text-xs text-sienna">
+            {salaryError}
+          </p>
         )}
       </div>
 
-      {anyFilterActive && (
-        <button
-          type="button"
-          onClick={() => onFiltersChange(DEFAULT_JOB_FILTERS)}
-          className="px-1 text-xs font-semibold text-sienna underline underline-offset-2"
-        >
-          Clear filters
-        </button>
-      )}
-
-      <div className="flex basis-full flex-wrap items-center gap-3 rounded-2xl border border-sand/70 bg-surface/65 p-3">
-          <span className="flex items-center gap-2 text-xs font-bold text-espresso/65">
-            <FunnelIcon width={16} height={16} />
-            More filters
-            {moreFilterCount > 0 && (
-              <span className="rounded-full bg-sienna px-1.5 py-0.5 text-[10px] text-cream">
-                {moreFilterCount}
-              </span>
-            )}
-          </span>
-          <Dropdown
-            ariaLabel="Posted within"
-            value={String(filters.postedWithinDays)}
-            onValueChange={(value) => update({ postedWithinDays: Number(value) })}
-            options={POSTED_WITHIN_OPTIONS.map((option) => ({
-              value: String(option.value),
-              label: option.label,
-            }))}
-            prefix={<span className="text-xs text-espresso/55">Posted</span>}
-            menuClassName="w-48"
-          />
-          <Dropdown
-            ariaLabel="Minimum match"
-            value={String(filters.minMatch)}
-            onValueChange={(value) => update({ minMatch: Number(value) })}
-            options={MINIMUM_MATCH_OPTIONS.map((option) => ({
-              value: String(option.value),
-              label: option.label,
-            }))}
-            prefix={<span className="text-xs text-espresso/55">Match</span>}
-            menuClassName="w-48"
-          />
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-sand/70 bg-surface/65 p-3">
+        <Dropdown
+          ariaLabel="Posted within"
+          value={String(filters.postedWithinDays)}
+          onValueChange={(value) => update({ postedWithinDays: Number(value) })}
+          options={POSTED_WITHIN_OPTIONS.map((option) => ({
+            value: String(option.value),
+            label: option.label,
+          }))}
+          prefix={<span className="text-xs text-espresso/55">Posted</span>}
+          menuClassName="w-48"
+        />
+        <Dropdown
+          ariaLabel="Minimum match"
+          value={String(filters.minMatch)}
+          onValueChange={(value) => update({ minMatch: Number(value) })}
+          options={MINIMUM_MATCH_OPTIONS.map((option) => ({
+            value: String(option.value),
+            label: option.label,
+          }))}
+          prefix={<span className="text-xs text-espresso/55">Match</span>}
+          menuClassName="w-48"
+        />
+        {anyFilterActive && (
+          <button
+            type="button"
+            onClick={() => {
+              onFiltersChange(DEFAULT_JOB_FILTERS);
+              setSalaryDrafts(salaryDraftsFromAnnual(null, null));
+              setSalaryError(null);
+              if (onClearAll) onClearAll();
+            }}
+            className="ml-auto px-1 text-xs font-semibold text-sienna underline underline-offset-2"
+          >
+            Clear all filters
+          </button>
+        )}
       </div>
     </div>
   );

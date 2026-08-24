@@ -241,7 +241,7 @@ export function AutoApplyPanel({
         }}
         onCancel={() => setConfirming(false)}
       >
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)]">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <PositionPicker
             value={selectedPositions}
             onChange={setSelectedPositions}
@@ -259,7 +259,7 @@ export function AutoApplyPanel({
                 label: `Up to ${value} application${value === 1 ? "" : "s"}`,
               }))}
               prefix={<PlaneIcon width={18} height={18} className="text-sienna" />}
-              buttonClassName="mt-1.5 min-h-12"
+              buttonClassName="min-h-12"
               className="w-full"
               menuClassName="w-full"
             />
@@ -271,6 +271,7 @@ export function AutoApplyPanel({
           filters={selectedFilters}
           onFiltersChange={setSelectedFilters}
           showSearch={false}
+          onClearAll={() => setSelectedPositions([])}
         />
       </ConfirmDialog>
     </Container>
