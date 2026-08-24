@@ -20,6 +20,8 @@ export type BrowserAssistResult = {
   opened: boolean;
   fieldsFilled: number;
   captchaDetected: boolean;
+  autoSubmitted: boolean;
+  blockerReason: string | null;
 };
 
 async function getBrowserContext(): Promise<BrowserContext> {
@@ -165,6 +167,60 @@ async function openLinkedApplication(pageUrl: string, frame: Frame) {
   } catch {
     return null;
   }
+}
+
+async function findSubmitButton(frame: Frame) {
+  const buttonPatterns = [
+    frame.getByRole("button", { name: /^submit$/i }),
+    frame.getByRole("button", { name: /^submit application$/i }),
+    frame.getByRole("button", { name: /^apply$/i }),
+    frame.getByRole("button", { name: /^apply now$/i }),
+    frame.getByRole("button", { name: /^send application$/i }),
+    frame.locator('button[type="submit"]'),
+    frame.locator('input[type="submit"]'),
+  ];
+
+  for (const pattern of buttonPatterns) {
+    const button = pattern.first();
+    try {
+      if ((await button.count()) && (await button.isVisible()) && (await button.isEnabled())) {
+        return button;
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+async function checkForUnfilledRequired(frame: Frame): Promise<string[]> {
+  const unfilled: string[] = [];
+  try {
+    const requiredInputs = await frame.locator('input[required], select[required], textarea[required]').all();
+    for (const input of requiredInputs) {
+      try {
+        if (!(await input.isVisible())) continue;
+        const value = await input.inputValue().catch(() => "");
+        const tagName = await input.evaluate((el) => el.tagName.toLowerCase());
+
+        if (tagName === "select") {
+          const selectedIndex = await input.evaluate((el: HTMLSelectElement) => el.selectedIndex);
+          if (selectedIndex <= 0) {
+            const label = await input.getAttribute("aria-label") || await input.getAttribute("name") || "field";
+            unfilled.push(label);
+          }
+        } else if (!value?.trim()) {
+          const label = await input.getAttribute("aria-label") || await input.getAttribute("name") || "field";
+          unfilled.push(label);
+        }
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    // If we can't check, assume fields might be unfilled
+  }
+  return unfilled;
 }
 
 async function fillFrame(
@@ -352,7 +408,7 @@ export async function launchAssistedApplication(
   profile: StoredCandidateProfile
 ): Promise<BrowserAssistResult> {
   if (!/^https:\/\//i.test(job.url)) {
-    return { opened: false, fieldsFilled: 0, captchaDetected: false };
+    return { opened: false, fieldsFilled: 0, captchaDetected: false, autoSubmitted: false, blockerReason: null };
   }
 
   const context = await getBrowserContext();
@@ -376,21 +432,48 @@ export async function launchAssistedApplication(
   const captchaDetected = page.frames().some((frame) =>
     /(?:recaptcha|hcaptcha|turnstile|captcha)/i.test(frame.url())
   );
-  await page.evaluate(
-    ({ filled, captcha }) => {
-      document.getElementById("apply-ink-assistant")?.remove();
-      const banner = document.createElement("div");
-      banner.id = "apply-ink-assistant";
-      banner.style.cssText =
-        "position:fixed;z-index:2147483647;left:16px;right:16px;bottom:16px;padding:14px 18px;border-radius:8px;background:#2f241f;color:#fff4df;font:600 14px system-ui;box-shadow:0 8px 30px #0004";
-      banner.textContent = `${filled} fields filled by Apply Ink. Review everything${
-        captcha ? ", complete the CAPTCHA," : ""
-      } and submit the form yourself.`;
-      document.body.appendChild(banner);
-    },
-    { filled: fieldsFilled, captcha: captchaDetected }
-  );
+
+  let autoSubmitted = false;
+  let blockerReason: string | null = null;
+
+  if (captchaDetected) {
+    blockerReason = "CAPTCHA detected";
+  } else {
+    const unfilledFields = await checkForUnfilledRequired(page.mainFrame());
+    if (unfilledFields.length > 0) {
+      blockerReason = `Required fields not filled: ${unfilledFields.slice(0, 3).join(", ")}`;
+    } else {
+      const submitButton = await findSubmitButton(page.mainFrame());
+      if (submitButton) {
+        try {
+          await submitButton.click({ timeout: 2_000 });
+          await page.waitForTimeout(1_500);
+          autoSubmitted = true;
+        } catch {
+          blockerReason = "Submit button not clickable";
+        }
+      } else {
+        blockerReason = "Submit button not found";
+      }
+    }
+  }
+
+  if (!autoSubmitted) {
+    await page.evaluate(
+      ({ filled, captcha, reason }) => {
+        document.getElementById("apply-ink-assistant")?.remove();
+        const banner = document.createElement("div");
+        banner.id = "apply-ink-assistant";
+        banner.style.cssText =
+          "position:fixed;z-index:2147483647;left:16px;right:16px;bottom:16px;padding:14px 18px;border-radius:8px;background:#2f241f;color:#fff4df;font:600 14px system-ui;box-shadow:0 8px 30px #0004";
+        banner.textContent = `${filled} fields filled by Apply Ink. ${reason}. Review and submit the form yourself.`;
+        document.body.appendChild(banner);
+      },
+      { filled: fieldsFilled, captcha: captchaDetected, reason: blockerReason }
+    );
+  }
+
   await page.bringToFront();
 
-  return { opened: true, fieldsFilled, captchaDetected };
+  return { opened: true, fieldsFilled, captchaDetected, autoSubmitted, blockerReason };
 }
