@@ -34,6 +34,8 @@ import {
   type JobFilterState,
 } from "@/lib/job-filtering";
 import { JOBS, type Job } from "@/lib/jobs";
+import type { AutoApplySettings } from "@/lib/auto-apply";
+import { positionSearchTerms } from "@/components/position-picker";
 
 export default function DashboardPage() {
   const pathname = usePathname();
@@ -59,6 +61,7 @@ export default function DashboardPage() {
   const notificationRef = useRef<HTMLDivElement>(null);
   const [notificationText, setNotificationText] = useState<string | null>(null);
   const [applicationError, setApplicationError] = useState<string | null>(null);
+  const [autoApplyLoading, setAutoApplyLoading] = useState(false);
 
   useEffect(() => {
     if (pathname === "/dashboard") router.replace("/dashboard/jobs");
@@ -181,6 +184,30 @@ export default function DashboardPage() {
   const autoApply = useAutoApply(loadedJobs, (job, autoSubmit) =>
     apps.add(job, "auto", false, autoSubmit)
   );
+
+  async function startAutoApply(
+    settings: AutoApplySettings,
+    selectedSearch: string,
+    selectedFilters: JobFilterState,
+    selectedPositions: string[]
+  ) {
+    setApplicationError(null);
+    setAutoApplyLoading(true);
+    try {
+      const filteredJobs = await jobsQuery.loadJobs(
+        selectedSearch.trim(),
+        selectedFilters,
+        positionSearchTerms(selectedPositions)
+      );
+      autoApply.start(settings, filteredJobs.jobs);
+    } catch (error) {
+      setApplicationError(
+        error instanceof Error ? error.message : "Could not load matching jobs."
+      );
+    } finally {
+      setAutoApplyLoading(false);
+    }
+  }
 
   const appliedCount = autoApply.log.filter(
     (entry) => entry.status === "applied"
@@ -364,7 +391,9 @@ export default function DashboardPage() {
             appliedCount={appliedCount}
             processedCount={processedCount}
             totalCount={loadedJobs.length}
-            onStart={autoApply.start}
+            search={search}
+            filters={{ ...jobFilters, minMatch: jobFilters.minMatch || autoApply.minMatch }}
+            onStart={startAutoApply}
             onStop={autoApply.stop}
             onResetUsage={autoApply.resetUsage}
             onOpenSettings={() => selectNav("Settings")}
@@ -374,7 +403,10 @@ export default function DashboardPage() {
             applicationAnswerCount={profile.applicationAnswerCount}
             applicationAnswerTotal={profile.applicationAnswerTotal}
             startDisabled={
-              loadingJobs || loadedJobs.length === 0 || profileQuery.isPending
+              loadingJobs ||
+              loadedJobs.length === 0 ||
+              profileQuery.isPending ||
+              autoApplyLoading
             }
           />
 
