@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { API_URL } from "@/config";
 import type { JobFilterState } from "@/lib/job-filtering";
@@ -19,10 +20,14 @@ export type JobsPage = {
 async function getJobs(
   page: number,
   q: string,
-  filters: JobFilterState
+  filters: JobFilterState,
+  pageSize?: number,
+  titleTerms: string[] = []
 ): Promise<JobsPage> {
   const params = new URLSearchParams({ page: String(page) });
+  if (pageSize) params.set("pageSize", String(pageSize));
   if (q) params.set("q", q);
+  titleTerms.forEach((term) => params.append("title", term));
   if (filters.role !== "all") params.set("role", filters.role);
   if (filters.location !== "worldwide") {
     params.set("location", filters.location);
@@ -48,7 +53,7 @@ export function useGetJobs(
   matchVersion: number,
   enabled = true
 ) {
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: ["jobs", search, filters, matchVersion],
     queryFn: ({ pageParam }) => getJobs(pageParam, search, filters),
     initialPageParam: 1,
@@ -57,4 +62,12 @@ export function useGetJobs(
     staleTime: 5 * 60_000,
     enabled,
   });
+
+  const loadJobs = useCallback(
+    (query: string, selectedFilters: JobFilterState, titleTerms: string[] = []) =>
+      getJobs(1, query, selectedFilters, 100, titleTerms),
+    []
+  );
+
+  return { ...query, loadJobs };
 }
