@@ -25,6 +25,7 @@ import {
   unauthenticatedResponse,
   untrustedMutationResponse,
 } from "@/lib/user-session";
+import { logToFile } from "@/lib/server-logs";
 
 export const runtime = "nodejs";
 
@@ -117,12 +118,18 @@ export async function POST(request: Request) {
     };
     const job = parseJob(body.job);
     const via = body.via === "auto" ? "auto" : "manual";
+
+    logToFile('[API] POST /api/applications - job: ' + (job?.title || 'unknown') + ' via: ' + via + ' openBrowser: ' + body.openBrowser + ' autoSubmit: ' + body.autoSubmit + ' isLocal: ' + isLocalRequest(request));
+    console.log('[API] POST /api/applications - job:', job?.title, 'via:', via, 'openBrowser:', body.openBrowser, 'autoSubmit:', body.autoSubmit, 'isLocal:', isLocalRequest(request));
+
     if (!job) {
       return Response.json({ error: "This job is missing required details. Refresh the jobs list and try again." }, { status: 400 });
     }
 
     const existing = await getApplicationByJobId(sessionId, job.id);
     if (existing?.status === "submitted") {
+      logToFile('[API] Application already submitted');
+      console.log('[API] Application already submitted');
       return Response.json({
         application: existing,
         browserOpened: false,
@@ -224,7 +231,13 @@ export async function POST(request: Request) {
             reason:
               "Automatic final submission is off. Enable it in Settings when you are ready.",
           };
+
+    logToFile('[API] Direct ATS apply result - status: ' + direct.status + ' reason: ' + direct.reason);
+    console.log('[API] Direct ATS apply result - status:', direct.status, 'reason:', direct.reason);
+
     if (direct.status === "submitted") {
+      logToFile('[API] Direct ATS submission successful');
+      console.log('[API] Direct ATS submission successful');
       const application = await saveApplication({
         sessionId,
         job,
@@ -244,12 +257,18 @@ export async function POST(request: Request) {
     let browserOpened = false;
 
     if (body.openBrowser === true && isLocalRequest(request)) {
+      logToFile('[API] Attempting browser assist...');
+      console.log('[API] Attempting browser assist...');
       try {
         const assisted = await launchAssistedApplication(job, tailoredProfile);
         browserOpened = assisted.opened;
+        logToFile('[API] Browser assist result - opened: ' + assisted.opened + ' autoSubmitted: ' + assisted.autoSubmitted + ' fieldsFilled: ' + assisted.fieldsFilled + ' blockerReason: ' + assisted.blockerReason);
+        console.log('[API] Browser assist result - opened:', assisted.opened, 'autoSubmitted:', assisted.autoSubmitted, 'fieldsFilled:', assisted.fieldsFilled, 'blockerReason:', assisted.blockerReason);
 
         if (assisted.opened) {
           if (assisted.autoSubmitted) {
+            logToFile('[API] Auto-submission successful, saving as submitted');
+            console.log('[API] Auto-submission successful, saving as submitted');
             const application = await saveApplication({
               sessionId,
               job,
@@ -265,18 +284,28 @@ export async function POST(request: Request) {
             });
           } else {
             reason = `${assisted.fieldsFilled} fields filled. ${assisted.blockerReason || "Manual review needed"}. Complete and submit yourself.`;
+            logToFile('[API] Browser assist needs user intervention: ' + reason);
+            console.log('[API] Browser assist needs user intervention:', reason);
           }
         } else {
           reason = "Open the employer's application and finish it yourself.";
+          logToFile('[API] Browser could not open');
+          console.log('[API] Browser could not open');
         }
-      } catch {
+      } catch (error) {
         reason =
           "The assisted browser could not open. Use the job link and finish the application yourself.";
+        logToFile('[API] Browser assist error: ' + String(error));
+        console.error('[API] Browser assist error:', error);
       }
     } else {
       reason = `Job-specific resume ready. ${reason} Open it from Applications when you are ready to finish.`;
+      logToFile('[API] Skipping browser assist - openBrowser: ' + body.openBrowser + ' isLocal: ' + isLocalRequest(request));
+      console.log('[API] Skipping browser assist - openBrowser:', body.openBrowser, 'isLocal:', isLocalRequest(request));
     }
 
+    logToFile('[API] Saving application as needs_user with reason: ' + reason);
+    console.log('[API] Saving application as needs_user with reason:', reason);
     const application = await saveApplication({
       sessionId,
       job,

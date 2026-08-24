@@ -58,7 +58,9 @@ export function useApplications() {
       openBrowser = false,
       autoSubmit?: boolean
     ) => {
+      console.log('[Applications] add() called - job:', job.title, 'via:', via, 'openBrowser:', openBrowser, 'autoSubmit:', autoSubmit);
       const attempt = await startApplication(job, via, openBrowser, autoSubmit);
+      console.log('[Applications] add() result - status:', attempt.application.status, 'browserOpened:', attempt.browserOpened, 'note:', attempt.note);
       replaceApplication(attempt.application);
       return attempt;
     },

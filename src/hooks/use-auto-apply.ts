@@ -78,6 +78,7 @@ export function useAutoApply(
   }, []);
 
   const start = useCallback((settings: AutoApplySettings, jobsToProcess = jobs) => {
+    console.log('[AutoApply] start() called with settings:', settings, 'jobs count:', jobsToProcess.length);
     if (jobsToProcess.length === 0) return;
     if (usedRef.current >= AUTO_APPLY_RULES.dailyLimit) return;
     settingsRef.current = settings;
@@ -148,7 +149,9 @@ export function useAutoApply(
         runCountRef.current += 1;
         try {
           if (!onApplyRef.current) throw new Error("Could not start this application. Try again.");
+          console.log('[AutoApply] Processing job:', job.title, 'at', job.company, 'autoSubmit:', settingsRef.current.autoSubmit);
           const attempt = await onApplyRef.current(job, settingsRef.current.autoSubmit);
+          console.log('[AutoApply] Result for', job.title, '- status:', attempt.application.status, 'note:', attempt.note);
           activityStatus =
             attempt.application.status === "submitted"
               ? "applied"
@@ -163,6 +166,7 @@ export function useAutoApply(
         } catch (error) {
           activityStatus = "error";
           note = error instanceof Error ? error.message : "Could not start this application.";
+          console.error('[AutoApply] Error processing job:', job.title, error);
         }
       }
 

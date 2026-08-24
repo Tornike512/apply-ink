@@ -182,7 +182,7 @@ export default function DashboardPage() {
   const loadingJobs = jobsQuery.isPending;
   const apps = useApplications();
   const autoApply = useAutoApply(loadedJobs, (job, autoSubmit) =>
-    apps.add(job, "auto", false, autoSubmit)
+    apps.add(job, "auto", true, autoSubmit)
   );
 
   async function startAutoApply(
