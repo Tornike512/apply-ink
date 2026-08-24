@@ -77,15 +77,15 @@ export function useAutoApply(
     return () => window.clearTimeout(timer);
   }, []);
 
-  const start = useCallback((settings: AutoApplySettings) => {
-    if (jobs.length === 0) return;
+  const start = useCallback((settings: AutoApplySettings, jobsToProcess = jobs) => {
+    if (jobsToProcess.length === 0) return;
     if (usedRef.current >= AUTO_APPLY_RULES.dailyLimit) return;
     settingsRef.current = settings;
     runCountRef.current = 0;
-    queueRef.current = [...jobs];
+    queueRef.current = [...jobsToProcess];
     indexRef.current = 0;
     setLog([]);
-    setCurrentJob(jobs[0] ?? null);
+    setCurrentJob(jobsToProcess[0] ?? null);
     setStatus("running");
     setTick((value) => value + 1);
   }, [jobs]);
