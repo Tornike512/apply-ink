@@ -460,7 +460,7 @@ export async function launchAssistedApplication(
 
   if (!autoSubmitted) {
     await page.evaluate(
-      ({ filled, captcha, reason }) => {
+      ({ filled, reason }) => {
         document.getElementById("apply-ink-assistant")?.remove();
         const banner = document.createElement("div");
         banner.id = "apply-ink-assistant";
@@ -469,7 +469,7 @@ export async function launchAssistedApplication(
         banner.textContent = `${filled} fields filled by Apply Ink. ${reason}. Review and submit the form yourself.`;
         document.body.appendChild(banner);
       },
-      { filled: fieldsFilled, captcha: captchaDetected, reason: blockerReason }
+      { filled: fieldsFilled, reason: blockerReason }
     );
   }
 

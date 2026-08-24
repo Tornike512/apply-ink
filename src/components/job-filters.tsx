@@ -1,28 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { DollarSignIcon, FunnelIcon, MapPinIcon, SearchIcon } from "@/assets";
-import { Button } from "@/components/button";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { SearchIcon } from "@/assets";
 import { Dropdown } from "@/components/dropdown";
 import {
   DEFAULT_JOB_FILTERS,
-  JOB_LOCATION_OPTIONS,
-  JOB_ROLE_OPTIONS,
   MINIMUM_MATCH_OPTIONS,
   POSTED_WITHIN_OPTIONS,
-  annualizeSalary,
   salaryFromAnnual,
   type JobFilterState,
-  type JobLocation,
-  type JobRole,
   type SalaryPeriod,
 } from "@/lib/job-filtering";
 
-const controlClass =
-  "flex cursor-pointer items-center gap-2 rounded-xl border border-sand bg-surface px-3.5 py-2.5";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-sand bg-surface px-3 py-2.5 text-sm text-espresso outline-none focus:border-terracotta";
-const SALARY_ANIMATION_MS = 160;
 
 type JobFiltersProps = {
   search: string;
@@ -91,19 +82,6 @@ function salaryDraftsFromAnnual(
   ) as SalaryDrafts;
 }
 
-function salaryLabel(filters: JobFilterState): string {
-  const amount = (value: number) =>
-    value >= 1_000 && value % 1_000 === 0
-      ? `$${value / 1_000}k`
-      : `$${value.toLocaleString()}`;
-  if (filters.minSalary !== null && filters.maxSalary !== null) {
-    return `${amount(filters.minSalary)} - ${amount(filters.maxSalary)}`;
-  }
-  if (filters.minSalary !== null) return `${amount(filters.minSalary)}+`;
-  if (filters.maxSalary !== null) return `Up to ${amount(filters.maxSalary)}`;
-  return "Any salary";
-}
-
 export function JobFilters({
   search,
   onSearchChange,
@@ -113,86 +91,17 @@ export function JobFilters({
   onClearAll,
 }: JobFiltersProps) {
   const salaryRef = useRef<HTMLDivElement>(null);
-  const [salaryOpen, setSalaryOpen] = useState(false);
-  const [salaryMounted, setSalaryMounted] = useState(false);
-  const salaryCloseTimerRef = useRef<number | null>(null);
   const [salaryDrafts, setSalaryDrafts] = useState<SalaryDrafts>(() =>
     salaryDraftsFromAnnual(filters.minSalary, filters.maxSalary)
   );
   const [salaryError, setSalaryError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!salaryOpen) return;
-    function closeOnOutsideClick(event: PointerEvent) {
-      if (!salaryRef.current?.contains(event.target as Node)) {
-        closeSalary();
-        setSalaryError(null);
-      }
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        closeSalary(true);
-        setSalaryError(null);
-      }
-    }
-    document.addEventListener("pointerdown", closeOnOutsideClick);
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsideClick);
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [salaryOpen]);
-
-  useEffect(
-    () => () => {
-      if (salaryCloseTimerRef.current !== null) {
-        window.clearTimeout(salaryCloseTimerRef.current);
-      }
+  const update = useCallback(
+    (patch: Partial<JobFilterState>) => {
+      onFiltersChange({ ...filters, ...patch });
     },
-    []
+    [filters, onFiltersChange]
   );
-
-  function update(patch: Partial<JobFilterState>) {
-    onFiltersChange({ ...filters, ...patch });
-  }
-
-  function openSalary() {
-    if (salaryMounted) {
-      closeSalary();
-      return;
-    }
-    if (salaryCloseTimerRef.current !== null) {
-      window.clearTimeout(salaryCloseTimerRef.current);
-      salaryCloseTimerRef.current = null;
-    }
-    setSalaryDrafts(
-      salaryDraftsFromAnnual(filters.minSalary, filters.maxSalary)
-    );
-    setSalaryError(null);
-    setSalaryMounted(true);
-    setSalaryOpen(false);
-    window.setTimeout(() => setSalaryOpen(true), 20);
-  }
-
-  function closeSalary(returnFocus = false) {
-    setSalaryOpen(false);
-    if (salaryCloseTimerRef.current !== null) {
-      window.clearTimeout(salaryCloseTimerRef.current);
-    }
-    salaryCloseTimerRef.current = window.setTimeout(() => {
-      setSalaryMounted(false);
-      salaryCloseTimerRef.current = null;
-      if (returnFocus) salaryRef.current?.querySelector("button")?.focus();
-    }, SALARY_ANIMATION_MS);
-  }
-
-  function cancelSalary() {
-    setSalaryDrafts(
-      salaryDraftsFromAnnual(filters.minSalary, filters.maxSalary)
-    );
-    setSalaryError(null);
-    closeSalary();
-  }
 
   function updateSalaryDraft(
     period: SalaryPeriod,
@@ -241,27 +150,36 @@ export function JobFilters({
     setSalaryError(null);
   }
 
-  function selectSalary() {
+  useEffect(() => {
     const yearlyDrafts = salaryDrafts.yearly;
     const min =
       yearlyDrafts.min === "" ? null : Math.round(Number(yearlyDrafts.min));
     const max =
       yearlyDrafts.max === "" ? null : Math.round(Number(yearlyDrafts.max));
+
     if (
       (min !== null && (!Number.isFinite(min) || min < 0)) ||
       (max !== null && (!Number.isFinite(max) || max < 0))
     ) {
-      setSalaryError("Enter valid salary amounts.");
       return;
     }
+
+    let errorMsg: string | null = null;
     if (min !== null && max !== null && min > max) {
-      setSalaryError("Minimum salary must be below maximum salary.");
-      return;
+      errorMsg = "Minimum salary must be below maximum salary.";
     }
-    update({ minSalary: min, maxSalary: max });
-    setSalaryError(null);
-    closeSalary();
-  }
+
+    const timer = setTimeout(() => {
+      if (errorMsg) {
+        setSalaryError(errorMsg);
+      } else if (min !== filters.minSalary || max !== filters.maxSalary) {
+        update({ minSalary: min, maxSalary: max });
+        setSalaryError(null);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [salaryDrafts, filters.minSalary, filters.maxSalary, update]);
 
   const anyFilterActive =
     filters.minSalary !== null ||

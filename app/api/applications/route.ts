@@ -242,13 +242,11 @@ export async function POST(request: Request) {
 
     let reason = direct.reason;
     let browserOpened = false;
-    let autoSubmitted = false;
 
     if (body.openBrowser === true && isLocalRequest(request)) {
       try {
         const assisted = await launchAssistedApplication(job, tailoredProfile);
         browserOpened = assisted.opened;
-        autoSubmitted = assisted.autoSubmitted;
 
         if (assisted.opened) {
           if (assisted.autoSubmitted) {
