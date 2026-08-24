@@ -795,12 +795,12 @@ async function main() {
       .getByRole("button", { name: /^(?:Select|Use salary range)$/ })
       .click();
     await salaryRequest;
-    await page.getByRole("button", { name: "Salary" }).click();
+    await page.getByRole("button", { name: "Salary", exact: true }).first().click();
     await page
       .getByRole("spinbutton", { name: "Minimum hourly salary" })
       .fill("100");
     await salaryDialog.getByRole("button", { name: "Cancel" }).click();
-    if (!(await page.getByRole("button", { name: "Salary" }).textContent())?.includes("$104k - $156k")) {
+    if (!(await page.getByRole("button", { name: "Salary", exact: true }).first().textContent())?.includes("$104k - $156k")) {
       throw new Error("Cancel changed the selected salary range.");
     }
 
