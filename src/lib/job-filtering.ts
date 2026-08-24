@@ -171,13 +171,26 @@ function salaryMatches(job: Job, minSalary: number | null, maxSalary: number | n
   return true;
 }
 
+function titleMatchesTerm(title: string, term: string): boolean {
+  const normalizedTitle = normalizeSearchText(title);
+  const normalizedTerm = normalizeSearchText(term);
+  if (normalizedTerm.length <= 3 && !normalizedTerm.includes(" ")) {
+    return new RegExp(`(?:^|\\W)${normalizedTerm}(?:$|\\W)`, "i").test(title);
+  }
+  return normalizedTitle.includes(normalizedTerm);
+}
+
 export function filterJobs(
   jobs: Job[],
   search: string,
   filters: JobFilterState,
-  now = Date.now()
+  now = Date.now(),
+  titleTerms: string[] = []
 ): Job[] {
   const query = normalizeSearchText(search);
+  const normalizedTitleTerms = titleTerms
+    .map(normalizeSearchText)
+    .filter(Boolean);
   const postedCutoff = filters.postedWithinDays
     ? now - filters.postedWithinDays * 86_400_000
     : null;
@@ -186,6 +199,14 @@ export function filterJobs(
       `${job.title} ${job.company} ${job.tags.join(" ")}`
     );
     if (query && !searchable.includes(query)) return false;
+    if (
+      normalizedTitleTerms.length > 0 &&
+      !normalizedTitleTerms.some((term) =>
+        titleMatchesTerm(job.title, term)
+      )
+    ) {
+      return false;
+    }
     if (!roleMatches(job, filters.role)) return false;
     if (!locationMatches(job, filters.location)) return false;
     if (!salaryMatches(job, filters.minSalary, filters.maxSalary)) return false;

@@ -30,6 +30,7 @@ export async function GET(request: Request) {
     Math.max(1, Number(url.searchParams.get("pageSize")) || 30)
   );
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+  const titleTerms = url.searchParams.getAll("title");
   const filters = jobFiltersFromSearchParams(url.searchParams);
   const forceRefresh = url.searchParams.get("refresh") === "1";
 
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
     worldwide,
     await getCandidateProfile(sessionId)
   );
-  const filtered = filterJobs(all, q, filters);
+  const filtered = filterJobs(all, q, filters, Date.now(), titleTerms);
   const start = (page - 1) * pageSize;
 
   return Response.json({
