@@ -36,28 +36,62 @@ async function getBrowserContext(): Promise<BrowserContext> {
     return globalBrowser.__applyInkBrowserPromise;
   }
 
-  const userDataDirectory = path.join(process.cwd(), "data", "apply-browser");
-  mkdirSync(userDataDirectory, { recursive: true });
-  globalBrowser.__applyInkBrowserPromise = chromium
-    .launchPersistentContext(userDataDirectory, {
-      channel: "chrome",
-      headless: false,
-      viewport: null,
-      args: ["--start-maximized"],
-    })
-    .then((context) => {
-      globalBrowser.__applyInkBrowserContext = context;
-      globalBrowser.__applyInkBrowserPromise = undefined;
-      context.on("close", () => {
-        globalBrowser.__applyInkBrowserContext = undefined;
+  // Try to connect to existing Chrome instance first
+  try {
+    logToFile('[BrowserAssist] Attempting to connect to existing Chrome instance on port 9222...');
+    console.log('[BrowserAssist] Attempting to connect to existing Chrome instance on port 9222...');
+
+    globalBrowser.__applyInkBrowserPromise = chromium.connectOverCDP('http://localhost:9222')
+      .then((browser) => {
+        const context = browser.contexts()[0];
+        if (!context) {
+          throw new Error('No context available in connected browser');
+        }
+        logToFile('[BrowserAssist] Successfully connected to existing Chrome instance');
+        console.log('[BrowserAssist] Successfully connected to existing Chrome instance');
+        globalBrowser.__applyInkBrowserContext = context;
+        globalBrowser.__applyInkBrowserPromise = undefined;
+        return context;
+      })
+      .catch((error) => {
+        logToFile('[BrowserAssist] Could not connect to existing Chrome, launching new persistent context: ' + String(error));
+        console.log('[BrowserAssist] Could not connect to existing Chrome, launching new persistent context');
+        globalBrowser.__applyInkBrowserPromise = undefined;
+        throw error;
       });
-      return context;
-    })
-    .catch((error) => {
-      globalBrowser.__applyInkBrowserPromise = undefined;
-      throw error;
-    });
-  return globalBrowser.__applyInkBrowserPromise;
+
+    return await globalBrowser.__applyInkBrowserPromise;
+  } catch {
+    // Fallback to launching persistent context
+    const userDataDirectory = path.join(process.cwd(), "data", "apply-browser");
+    mkdirSync(userDataDirectory, { recursive: true });
+
+    logToFile('[BrowserAssist] Launching new persistent browser context...');
+    console.log('[BrowserAssist] Launching new persistent browser context...');
+
+    globalBrowser.__applyInkBrowserPromise = chromium
+      .launchPersistentContext(userDataDirectory, {
+        channel: "chrome",
+        headless: false,
+        viewport: null,
+        args: ["--start-maximized"],
+      })
+      .then((context) => {
+        logToFile('[BrowserAssist] Persistent context launched successfully');
+        console.log('[BrowserAssist] Persistent context launched successfully');
+        globalBrowser.__applyInkBrowserContext = context;
+        globalBrowser.__applyInkBrowserPromise = undefined;
+        context.on("close", () => {
+          globalBrowser.__applyInkBrowserContext = undefined;
+        });
+        return context;
+      })
+      .catch((error) => {
+        globalBrowser.__applyInkBrowserPromise = undefined;
+        throw error;
+      });
+    return globalBrowser.__applyInkBrowserPromise;
+  }
 }
 
 async function fillFirst(
@@ -480,17 +514,28 @@ export async function launchAssistedApplication(
   logToFile('[BrowserAssist] Total fields filled: ' + fieldsFilled);
   console.log('[BrowserAssist] Total fields filled:', fieldsFilled);
 
-  const captchaDetected = page.frames().some((frame) =>
-    /(?:recaptcha|hcaptcha|turnstile|captcha)/i.test(frame.url())
-  );
-  logToFile('[BrowserAssist] CAPTCHA detected: ' + captchaDetected);
-  console.log('[BrowserAssist] CAPTCHA detected:', captchaDetected);
+  // Check if CAPTCHA is actually visible and blocking (not just loaded in background)
+  let captchaDetected = false;
+  try {
+    const captchaVisible = await page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"], .g-recaptcha, .h-captcha, .cf-turnstile').first().isVisible({ timeout: 1_000 });
+    captchaDetected = captchaVisible;
+    logToFile('[BrowserAssist] CAPTCHA iframe visible check: ' + captchaVisible);
+    console.log('[BrowserAssist] CAPTCHA iframe visible check:', captchaVisible);
+  } catch {
+    // No visible CAPTCHA found
+    captchaDetected = false;
+    logToFile('[BrowserAssist] No visible CAPTCHA detected');
+    console.log('[BrowserAssist] No visible CAPTCHA detected');
+  }
+
+  logToFile('[BrowserAssist] CAPTCHA blocking: ' + captchaDetected);
+  console.log('[BrowserAssist] CAPTCHA blocking:', captchaDetected);
 
   let autoSubmitted = false;
   let blockerReason: string | null = null;
 
   if (captchaDetected) {
-    blockerReason = "CAPTCHA detected";
+    blockerReason = "CAPTCHA detected and visible - needs manual completion";
     logToFile('[BrowserAssist] Blocker: ' + blockerReason);
     console.log('[BrowserAssist] Blocker:', blockerReason);
   } else {

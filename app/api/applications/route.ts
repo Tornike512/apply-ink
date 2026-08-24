@@ -232,11 +232,11 @@ export async function POST(request: Request) {
               "Automatic final submission is off. Enable it in Settings when you are ready.",
           };
 
-    logToFile('[API] Direct ATS apply result - status: ' + direct.status + ' reason: ' + direct.reason);
-    console.log('[API] Direct ATS apply result - status:', direct.status, 'reason:', direct.reason);
+    logToFile('[API] Direct ATS apply result - status: ' + direct.status + (direct.status !== "submitted" ? ' reason: ' + direct.reason : ''));
+    console.log('[API] Direct ATS apply result - status:', direct.status, direct.status !== "submitted" ? 'reason:' : '', direct.status !== "submitted" ? direct.reason : '');
 
     if (direct.status === "submitted") {
-      logToFile('[API] Direct ATS submission successful');
+      logToFile('[API] Direct ATS submission successful via ' + direct.provider);
       console.log('[API] Direct ATS submission successful');
       const application = await saveApplication({
         sessionId,
@@ -253,8 +253,8 @@ export async function POST(request: Request) {
       });
     }
 
-    let reason = direct.reason;
     let browserOpened = false;
+    let finalReason = direct.status === "unavailable" ? direct.reason : "";
 
     if (body.openBrowser === true && isLocalRequest(request)) {
       logToFile('[API] Attempting browser assist...');
@@ -283,39 +283,40 @@ export async function POST(request: Request) {
               note: `Application auto-submitted! ${assisted.fieldsFilled} fields filled and form submitted automatically.`,
             });
           } else {
-            reason = `${assisted.fieldsFilled} fields filled. ${assisted.blockerReason || "Manual review needed"}. Complete and submit yourself.`;
-            logToFile('[API] Browser assist needs user intervention: ' + reason);
-            console.log('[API] Browser assist needs user intervention:', reason);
+            finalReason = `${assisted.fieldsFilled} fields filled. ${assisted.blockerReason || "Manual review needed"}. Complete and submit yourself.`;
+            logToFile('[API] Browser assist needs user intervention: ' + finalReason);
+            console.log('[API] Browser assist needs user intervention:', finalReason);
           }
         } else {
-          reason = "Open the employer's application and finish it yourself.";
+          finalReason = "Open the employer's application and finish it yourself.";
           logToFile('[API] Browser could not open');
           console.log('[API] Browser could not open');
         }
       } catch (error) {
-        reason =
+        finalReason =
           "The assisted browser could not open. Use the job link and finish the application yourself.";
         logToFile('[API] Browser assist error: ' + String(error));
         console.error('[API] Browser assist error:', error);
       }
     } else {
-      reason = `Job-specific resume ready. ${reason} Open it from Applications when you are ready to finish.`;
+      const unavailableReason = direct.status === "unavailable" ? direct.reason : "This employer does not provide Apply Ink with direct ATS access.";
+      finalReason = `Job-specific resume ready. ${unavailableReason} Open it from Applications when you are ready to finish.`;
       logToFile('[API] Skipping browser assist - openBrowser: ' + body.openBrowser + ' isLocal: ' + isLocalRequest(request));
       console.log('[API] Skipping browser assist - openBrowser:', body.openBrowser, 'isLocal:', isLocalRequest(request));
     }
 
-    logToFile('[API] Saving application as needs_user with reason: ' + reason);
-    console.log('[API] Saving application as needs_user with reason:', reason);
+    logToFile('[API] Saving application as needs_user with reason: ' + finalReason);
+    console.log('[API] Saving application as needs_user with reason:', finalReason);
     const application = await saveApplication({
       sessionId,
       job,
       status: "needs_user",
       method: "assisted",
       via,
-      needsUserReason: reason,
+      needsUserReason: finalReason,
       tailoredResumeFileName: tailoredResume.fileName,
     });
-    return Response.json({ application, browserOpened, note: reason });
+    return Response.json({ application, browserOpened, note: finalReason });
   } catch {
     return Response.json(
       { error: "Could not start the application. Try again." },
