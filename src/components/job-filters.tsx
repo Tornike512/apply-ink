@@ -22,12 +22,14 @@ const controlClass =
   "flex cursor-pointer items-center gap-2 rounded-xl border border-sand bg-surface px-3.5 py-2.5";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-sand bg-surface px-3 py-2.5 text-sm text-espresso outline-none focus:border-terracotta";
+const SALARY_ANIMATION_MS = 160;
 
 type JobFiltersProps = {
   search: string;
   onSearchChange: (value: string) => void;
   filters: JobFilterState;
   onFiltersChange: (filters: JobFilterState) => void;
+  showSearch?: boolean;
 };
 
 type SalaryBoundary = "min" | "max";
@@ -106,9 +108,12 @@ export function JobFilters({
   onSearchChange,
   filters,
   onFiltersChange,
+  showSearch = true,
 }: JobFiltersProps) {
   const salaryRef = useRef<HTMLDivElement>(null);
   const [salaryOpen, setSalaryOpen] = useState(false);
+  const [salaryMounted, setSalaryMounted] = useState(false);
+  const salaryCloseTimerRef = useRef<number | null>(null);
   const [salaryDrafts, setSalaryDrafts] = useState<SalaryDrafts>(() =>
     salaryDraftsFromAnnual(filters.minSalary, filters.maxSalary)
   );
@@ -118,13 +123,13 @@ export function JobFilters({
     if (!salaryOpen) return;
     function closeOnOutsideClick(event: PointerEvent) {
       if (!salaryRef.current?.contains(event.target as Node)) {
-        setSalaryOpen(false);
+        closeSalary();
         setSalaryError(null);
       }
     }
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setSalaryOpen(false);
+        closeSalary(true);
         setSalaryError(null);
       }
     }
@@ -136,16 +141,47 @@ export function JobFilters({
     };
   }, [salaryOpen]);
 
+  useEffect(
+    () => () => {
+      if (salaryCloseTimerRef.current !== null) {
+        window.clearTimeout(salaryCloseTimerRef.current);
+      }
+    },
+    []
+  );
+
   function update(patch: Partial<JobFilterState>) {
     onFiltersChange({ ...filters, ...patch });
   }
 
   function openSalary() {
+    if (salaryMounted) {
+      closeSalary();
+      return;
+    }
+    if (salaryCloseTimerRef.current !== null) {
+      window.clearTimeout(salaryCloseTimerRef.current);
+      salaryCloseTimerRef.current = null;
+    }
     setSalaryDrafts(
       salaryDraftsFromAnnual(filters.minSalary, filters.maxSalary)
     );
     setSalaryError(null);
-    setSalaryOpen((current) => !current);
+    setSalaryMounted(true);
+    setSalaryOpen(false);
+    window.setTimeout(() => setSalaryOpen(true), 20);
+  }
+
+  function closeSalary(returnFocus = false) {
+    setSalaryOpen(false);
+    if (salaryCloseTimerRef.current !== null) {
+      window.clearTimeout(salaryCloseTimerRef.current);
+    }
+    salaryCloseTimerRef.current = window.setTimeout(() => {
+      setSalaryMounted(false);
+      salaryCloseTimerRef.current = null;
+      if (returnFocus) salaryRef.current?.querySelector("button")?.focus();
+    }, SALARY_ANIMATION_MS);
   }
 
   function cancelSalary() {
@@ -153,7 +189,7 @@ export function JobFilters({
       salaryDraftsFromAnnual(filters.minSalary, filters.maxSalary)
     );
     setSalaryError(null);
-    setSalaryOpen(false);
+    closeSalary();
   }
 
   function updateSalaryDraft(
@@ -222,7 +258,7 @@ export function JobFilters({
     }
     update({ minSalary: min, maxSalary: max });
     setSalaryError(null);
-    setSalaryOpen(false);
+    closeSalary();
   }
 
   const moreFilterCount =
@@ -236,17 +272,19 @@ export function JobFilters({
 
   return (
     <div className="flex flex-wrap items-stretch gap-3">
-      <label className="flex min-w-0 flex-1 basis-64 items-center gap-2.5 rounded-xl border border-sand bg-surface px-3.5 py-2.5">
-        <SearchIcon width={18} height={18} className="shrink-0 text-espresso/50" />
-        <input
-          type="search"
-          aria-label="Search jobs"
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search by title, company, or skill"
-          className="min-w-0 flex-1 bg-transparent text-sm text-espresso outline-none placeholder:text-espresso/45"
-        />
-      </label>
+      {showSearch && (
+        <label className="flex min-w-0 flex-1 basis-64 items-center gap-2.5 rounded-xl border border-sand bg-surface px-3.5 py-2.5">
+          <SearchIcon width={18} height={18} className="shrink-0 text-espresso/50" />
+          <input
+            type="search"
+            aria-label="Search jobs"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search by title, company, or skill"
+            className="min-w-0 flex-1 bg-transparent text-sm text-espresso outline-none placeholder:text-espresso/45"
+          />
+        </label>
+      )}
 
       <Dropdown
         ariaLabel="Role"
@@ -276,18 +314,18 @@ export function JobFilters({
           type="button"
           aria-label="Salary"
           aria-haspopup="dialog"
-          aria-expanded={salaryOpen}
+          aria-expanded={salaryMounted && salaryOpen}
           onClick={openSalary}
           className={`${controlClass} h-full text-sm font-medium text-espresso`}
         >
           <DollarSignIcon width={16} height={16} className="text-espresso/60" />
           {salaryLabel(filters)}
         </button>
-        {salaryOpen && (
+        {salaryMounted && (
           <div
             role="dialog"
             aria-label="Salary range"
-            className="absolute top-full right-0 z-30 mt-2 w-[min(42rem,calc(100vw-2rem))] rounded-2xl border border-sand bg-surface p-4 shadow-[0_18px_50px_rgba(78,47,36,0.18)]"
+            className={`absolute top-full right-0 z-30 mt-2 w-[min(42rem,calc(100vw-2rem))] rounded-2xl border border-sand bg-surface p-4 shadow-[0_18px_50px_rgba(78,47,36,0.18)] transition-[opacity,transform] duration-[160ms] motion-reduce:transition-none ${salaryOpen ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"}`}
           >
             <p className="text-sm font-bold text-espresso">Salary range</p>
             <p className="mt-1 text-xs leading-5 text-espresso/55">
