@@ -1,8 +1,10 @@
 import { useState } from "react";
 import {
   CalendarIcon,
+  BellIcon,
   FileTextIcon,
   PlaneIcon,
+  ShieldCheckIcon,
   PlayIcon,
   TargetIcon,
 } from "@/assets";
@@ -11,12 +13,12 @@ import { Button } from "@/components/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Container } from "@/components/container";
 import { Dropdown } from "@/components/dropdown";
-import { MINIMUM_MATCH_OPTIONS } from "@/lib/job-filtering";
+import { JobFilters } from "@/components/job-filters";
+import { PositionPicker } from "@/components/position-picker";
 import type { AutoApplySettings, AutoApplyStatus } from "@/lib/auto-apply";
+import type { JobFilterState } from "@/lib/job-filtering";
 
 const RUN_LIMIT_OPTIONS = [1, 3, 5];
-const DEFAULT_AUTO_APPLY_MATCH = 80;
-
 type AutoApplyPanelProps = {
   status: AutoApplyStatus;
   usedToday: number;
@@ -25,7 +27,9 @@ type AutoApplyPanelProps = {
   appliedCount: number;
   processedCount: number;
   totalCount: number;
-  onStart: (settings: AutoApplySettings) => void;
+  search: string;
+  filters: JobFilterState;
+  onStart: (settings: AutoApplySettings, search: string, filters: JobFilterState, titleTerms: string[]) => void;
   onStop: () => void;
   onResetUsage: () => void;
   onOpenSettings: () => void;
@@ -45,6 +49,8 @@ export function AutoApplyPanel({
   appliedCount,
   processedCount,
   totalCount,
+  search,
+  filters,
   onStart,
   onStop,
   onResetUsage,
@@ -57,7 +63,9 @@ export function AutoApplyPanel({
   startDisabled = false,
 }: AutoApplyPanelProps) {
   const [confirming, setConfirming] = useState(false);
-  const [selectedMatch, setSelectedMatch] = useState(minMatch);
+  const [selectedSearch, setSelectedSearch] = useState(search);
+  const [selectedFilters, setSelectedFilters] = useState<JobFilterState>(filters);
+  const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
   const [selectedRunLimit, setSelectedRunLimit] = useState(dailyLimit);
   const running = status === "running";
   const atLimit = usedToday >= dailyLimit;
@@ -66,7 +74,9 @@ export function AutoApplyPanel({
   const hasRun = status === "done" || status === "stopped" || status === "limit-reached";
 
   function openConfirmation() {
-    setSelectedMatch(minMatch || DEFAULT_AUTO_APPLY_MATCH);
+    setSelectedSearch(search);
+    setSelectedFilters(filters);
+    setSelectedPositions([]);
     setSelectedRunLimit(dailyLimit);
     setConfirming(true);
   }
@@ -201,39 +211,66 @@ export function AutoApplyPanel({
 
       <ConfirmDialog
         open={confirming}
+        icon={<PlaneIcon width={30} height={30} />}
         title="Start applying?"
         description="Choose how selective this run should be. Applications that need your attention will appear in Messages."
         confirmLabel="Start applications"
+        footer={
+          <>
+            <span className="flex items-center gap-2">
+              <ShieldCheckIcon width={20} height={20} className="shrink-0 text-sienna" />
+              <span><strong className="block text-espresso">You’re in control</strong>Review before we apply</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <BellIcon width={20} height={20} className="shrink-0 text-sienna" />
+              <span><strong className="block text-espresso">Stay informed</strong>Updates appear in Messages</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <FileTextIcon width={20} height={20} className="shrink-0 text-sienna" />
+              <span><strong className="block text-espresso">Secure & private</strong>Your data stays protected</span>
+            </span>
+          </>
+        }
         onConfirm={() => {
           setConfirming(false);
           onStart({
-            minMatch: selectedMatch,
+            minMatch: selectedFilters.minMatch,
             runLimit: selectedRunLimit,
             autoSubmit: true,
-          });
+          }, selectedSearch, selectedFilters, selectedPositions);
         }}
         onCancel={() => setConfirming(false)}
       >
-        <Dropdown
-          ariaLabel="Minimum match"
-          value={String(selectedMatch)}
-          onValueChange={(value) => setSelectedMatch(Number(value))}
-          options={MINIMUM_MATCH_OPTIONS.filter((option) => option.value > 0).map(
-            (option) => ({ value: String(option.value), label: option.label })
-          )}
-          prefix={<span className="text-xs text-espresso/55">Match</span>}
-          menuClassName="w-full"
-        />
-        <Dropdown
-          ariaLabel="Applications this run"
-          value={String(selectedRunLimit)}
-          onValueChange={(value) => setSelectedRunLimit(Number(value))}
-          options={RUN_LIMIT_OPTIONS.map((value) => ({
-            value: String(value),
-            label: `Up to ${value} application${value === 1 ? "" : "s"}`,
-          }))}
-          prefix={<span className="text-xs text-espresso/55">Run limit</span>}
-          menuClassName="w-full"
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)]">
+          <PositionPicker
+            value={selectedPositions}
+            onChange={setSelectedPositions}
+          />
+          <div className="w-full">
+            <span className="mb-1.5 block text-sm font-semibold text-espresso">
+              Applications this run
+            </span>
+            <Dropdown
+              ariaLabel="Applications this run"
+              value={String(selectedRunLimit)}
+              onValueChange={(value) => setSelectedRunLimit(Number(value))}
+              options={RUN_LIMIT_OPTIONS.map((value) => ({
+                value: String(value),
+                label: `Up to ${value} application${value === 1 ? "" : "s"}`,
+              }))}
+              prefix={<PlaneIcon width={18} height={18} className="text-sienna" />}
+              buttonClassName="mt-1.5 min-h-12"
+              className="w-full"
+              menuClassName="w-full"
+            />
+          </div>
+        </div>
+        <JobFilters
+          search={selectedSearch}
+          onSearchChange={setSelectedSearch}
+          filters={selectedFilters}
+          onFiltersChange={setSelectedFilters}
+          showSearch={false}
         />
       </ConfirmDialog>
     </Container>
