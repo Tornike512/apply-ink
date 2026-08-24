@@ -242,13 +242,35 @@ export async function POST(request: Request) {
 
     let reason = direct.reason;
     let browserOpened = false;
+    let autoSubmitted = false;
+
     if (body.openBrowser === true && isLocalRequest(request)) {
       try {
         const assisted = await launchAssistedApplication(job, tailoredProfile);
         browserOpened = assisted.opened;
-        reason = assisted.opened
-          ? `A job-specific resume was attached and ${assisted.fieldsFilled} fields were filled. Review the form, complete any verification, and submit it.`
-          : "Open the employer's application and finish it yourself.";
+        autoSubmitted = assisted.autoSubmitted;
+
+        if (assisted.opened) {
+          if (assisted.autoSubmitted) {
+            const application = await saveApplication({
+              sessionId,
+              job,
+              status: "submitted",
+              method: "assisted",
+              via,
+              tailoredResumeFileName: tailoredResume.fileName,
+            });
+            return Response.json({
+              application,
+              browserOpened: true,
+              note: `Application auto-submitted! ${assisted.fieldsFilled} fields filled and form submitted automatically.`,
+            });
+          } else {
+            reason = `${assisted.fieldsFilled} fields filled. ${assisted.blockerReason || "Manual review needed"}. Complete and submit yourself.`;
+          }
+        } else {
+          reason = "Open the employer's application and finish it yourself.";
+        }
       } catch {
         reason =
           "The assisted browser could not open. Use the job link and finish the application yourself.";
