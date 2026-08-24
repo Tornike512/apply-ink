@@ -7,6 +7,7 @@ import {
   DEFAULT_JOB_FILTERS,
   MINIMUM_MATCH_OPTIONS,
   POSTED_WITHIN_OPTIONS,
+  annualizeSalary,
   salaryFromAnnual,
   type JobFilterState,
   type SalaryPeriod,

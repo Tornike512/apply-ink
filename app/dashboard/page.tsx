@@ -335,7 +335,7 @@ export default function DashboardPage() {
             />
           ) : activeNav === "Messages" ? (
             <MessagesList
-              applications={needsUserApplications}
+              applications={apps.applications}
               onContinue={continueApplication}
               onMarkSubmitted={apps.markSubmitted}
             />
