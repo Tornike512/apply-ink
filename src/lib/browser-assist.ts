@@ -446,9 +446,43 @@ export async function launchAssistedApplication(
       const submitButton = await findSubmitButton(page.mainFrame());
       if (submitButton) {
         try {
+          const currentUrl = page.url();
           await submitButton.click({ timeout: 2_000 });
-          await page.waitForTimeout(1_500);
-          autoSubmitted = true;
+
+          // Wait for submission confirmation signals
+          const confirmationDetected = await Promise.race([
+            // Signal 1: Navigation to a new page (confirmation/thank-you page)
+            page.waitForURL((url) => url.toString() !== currentUrl, { timeout: 10_000 })
+              .then(() => true)
+              .catch(() => false),
+
+            // Signal 2: Success message appears on the same page
+            page.waitForSelector(
+              'text=/thank you|thanks for (your )?application|application (has been )?(received|submitted)|successfully submitted|we.?ll be in touch|application complete/i',
+              { timeout: 10_000, state: 'visible' }
+            )
+              .then(() => true)
+              .catch(() => false),
+
+            // Signal 3: Fallback - wait minimum time for server processing
+            page.waitForTimeout(8_000).then(() => "timeout"),
+          ]);
+
+          if (confirmationDetected === true) {
+            autoSubmitted = true;
+          } else if (confirmationDetected === "timeout") {
+            // Waited 8 seconds - check if URL changed or form disappeared
+            const urlChanged = page.url() !== currentUrl;
+            const formGone = await page.locator('input[required], select[required], textarea[required]').count().then(count => count === 0);
+
+            if (urlChanged || formGone) {
+              autoSubmitted = true;
+            } else {
+              blockerReason = "Submission status unclear after 8 seconds";
+            }
+          } else {
+            blockerReason = "No confirmation detected after submission";
+          }
         } catch {
           blockerReason = "Submit button not clickable";
         }
