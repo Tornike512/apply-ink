@@ -5,6 +5,7 @@ import type { Job } from "@/lib/jobs";
 
 const APPLICATIONS_KEY = ["applications"] as const;
 const LOCAL_HEADERS = { "x-apply-ink": "1" };
+type MessageStatus = Extract<Application["status"], "needs_user" | "submitted">;
 
 async function responseError(response: Response): Promise<Error> {
   const data = (await response.json().catch(() => ({}))) as { error?: string };
@@ -101,6 +102,32 @@ export function useApplications() {
     [queryClient]
   );
 
+  const clearMessages = useCallback(
+    async (status: MessageStatus) => {
+      const response = await fetch("/api/applications", {
+        method: "PATCH",
+        headers: { ...LOCAL_HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({ messageStatus: status }),
+      });
+      if (!response.ok) throw await responseError(response);
+      const data = (await response.json()) as {
+        dismissedAt: number;
+        dismissedIds: string[];
+      };
+      const dismissedIds = new Set(data.dismissedIds);
+      queryClient.setQueryData<Application[]>(APPLICATIONS_KEY, (current = []) =>
+        current.map((application) =>
+          dismissedIds.has(application.id)
+            ? { ...application, messageDismissedAt: data.dismissedAt }
+            : application
+        )
+      );
+      await queryClient.invalidateQueries({ queryKey: APPLICATIONS_KEY });
+      return data.dismissedIds.length;
+    },
+    [queryClient]
+  );
+
   const get = useCallback(
     (jobId: string) => applications.find((item) => item.job.id === jobId) ?? null,
     [applications]
@@ -113,6 +140,7 @@ export function useApplications() {
     continueApplication,
     markSubmitted,
     remove,
+    clearMessages,
     get,
     has,
     isLoading: query.isPending,

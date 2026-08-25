@@ -222,7 +222,8 @@ export default function DashboardPage() {
   const highMatches = lastPage?.highMatches ?? 0;
   const selectedApplication = selectedJob ? apps.get(selectedJob.id) : null;
   const needsUserApplications = apps.applications.filter(
-    (application) => application.status === "needs_user"
+    (application) =>
+      application.status === "needs_user" && application.messageDismissedAt === null
   );
 
   async function continueApplication(application: (typeof apps.applications)[number]) {
@@ -338,6 +339,7 @@ export default function DashboardPage() {
               applications={apps.applications}
               onContinue={continueApplication}
               onMarkSubmitted={apps.markSubmitted}
+              onClearMessages={apps.clearMessages}
             />
           ) : activeNav === "Settings" ? (
             <ProfilePanel />

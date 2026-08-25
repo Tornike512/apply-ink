@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Badge } from "@/components/badge";
 import { Button } from "@/components/button";
 import { CompanyAvatar } from "@/components/company-avatar";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Container } from "@/components/container";
 import { Tabs } from "@/components/tabs";
 import type { Application } from "@/lib/applications";
@@ -12,32 +13,89 @@ type MessagesListProps = {
   applications: Application[];
   onContinue: (application: Application) => void | Promise<unknown>;
   onMarkSubmitted: (id: string) => void | Promise<unknown>;
+  onClearMessages: (
+    status: Extract<Application["status"], "needs_user" | "submitted">
+  ) => void | Promise<unknown>;
 };
 
 export function MessagesList({
   applications,
   onContinue,
   onMarkSubmitted,
+  onClearMessages,
 }: MessagesListProps) {
   const [activeTab, setActiveTab] = useState<"needs-action" | "sent">("needs-action");
+  const [clearTarget, setClearTarget] = useState<
+    Extract<Application["status"], "needs_user" | "submitted"> | null
+  >(null);
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
 
   const needsActionApps = applications.filter(
-    (app) => app.status === "needs_user"
+    (app) => app.status === "needs_user" && app.messageDismissedAt === null
   );
-  const sentApps = applications.filter((app) => app.status === "submitted");
+  const sentApps = applications.filter(
+    (app) => app.status === "submitted" && app.messageDismissedAt === null
+  );
 
   const displayedApps = activeTab === "needs-action" ? needsActionApps : sentApps;
+  const activeStatus = activeTab === "needs-action" ? "needs_user" : "submitted";
+  const activeLabel = activeTab === "needs-action" ? "Needs Action" : "Sent";
+  const clearTargetApps = applications.filter(
+    (application) =>
+      application.status === clearTarget && application.messageDismissedAt === null
+  );
+  const clearTargetLabel = clearTarget === "needs_user" ? "Needs Action" : "Sent";
+
+  async function clearMessages() {
+    if (!clearTarget || isClearing) return;
+
+    setIsClearing(true);
+    setClearError(null);
+    try {
+      await onClearMessages(clearTarget);
+      setClearTarget(null);
+    } catch (error) {
+      setClearError(
+        error instanceof Error ? error.message : "Could not clear these messages. Try again."
+      );
+    } finally {
+      setIsClearing(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs
-        tabs={[
-          { label: `Needs Action (${needsActionApps.length})`, value: "needs-action" },
-          { label: `Sent (${sentApps.length})`, value: "sent" },
-        ]}
-        activeTab={activeTab}
-        onTabChange={(value) => setActiveTab(value as "needs-action" | "sent")}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs
+          tabs={[
+            { label: `Needs Action (${needsActionApps.length})`, value: "needs-action" },
+            { label: `Sent (${sentApps.length})`, value: "sent" },
+          ]}
+          activeTab={activeTab}
+          onTabChange={(value) => setActiveTab(value as "needs-action" | "sent")}
+        />
+        {displayedApps.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              setClearError(null);
+              setClearTarget(activeStatus);
+            }}
+            className="px-3 py-1.5 text-xs"
+          >
+            Clear {activeLabel}
+          </Button>
+        )}
+      </div>
+
+      {clearError && (
+        <Container variant="card" className="border border-sienna/30 p-3">
+          <p role="alert" className="text-sm text-sienna">
+            {clearError}
+          </p>
+        </Container>
+      )}
 
       {displayedApps.length === 0 ? (
         <Container variant="card" className="p-8 text-center">
@@ -146,6 +204,17 @@ export function MessagesList({
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={clearTarget !== null}
+        title={`Clear ${clearTargetLabel}?`}
+        description={`This clears ${clearTargetApps.length} ${clearTargetLabel.toLowerCase()} application${clearTargetApps.length === 1 ? "" : "s"} from Messages. Your application history stays saved.`}
+        confirmLabel={isClearing ? "Clearing..." : `Clear ${clearTargetLabel}`}
+        onConfirm={() => void clearMessages()}
+        onCancel={() => {
+          if (!isClearing) setClearTarget(null);
+        }}
+      />
     </div>
   );
 }
