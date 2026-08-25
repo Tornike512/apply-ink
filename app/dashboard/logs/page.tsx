@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Container } from "@/components/container";
 import { Spinner } from "@/components/spinner";
 
@@ -9,18 +11,70 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [confirmingClear, setConfirmingClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const clearInProgressRef = useRef(false);
+  const requestVersionRef = useRef(0);
 
   async function fetchLogs() {
+    if (clearInProgressRef.current) return;
+    const requestVersion = ++requestVersionRef.current;
     try {
       const response = await fetch("/api/logs", { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to fetch logs");
       const data = (await response.json()) as { logs: string[] };
+      if (
+        clearInProgressRef.current ||
+        requestVersion !== requestVersionRef.current
+      ) {
+        return;
+      }
       setLogs(data.logs);
       setError(null);
     } catch (err) {
+      if (
+        clearInProgressRef.current ||
+        requestVersion !== requestVersionRef.current
+      ) {
+        return;
+      }
       setError(err instanceof Error ? err.message : "Failed to load logs");
     } finally {
-      setLoading(false);
+      if (
+        !clearInProgressRef.current &&
+        requestVersion === requestVersionRef.current
+      ) {
+        setLoading(false);
+      }
+    }
+  }
+
+  async function clearLogs() {
+    if (clearing || clearInProgressRef.current) return;
+
+    clearInProgressRef.current = true;
+    requestVersionRef.current += 1;
+    setClearing(true);
+    try {
+      const response = await fetch("/api/logs", {
+        method: "DELETE",
+        headers: { "x-apply-ink": "1" },
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error ?? "Could not clear logs");
+      }
+      setLogs([]);
+      setError(null);
+      setConfirmingClear(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not clear logs");
+    } finally {
+      clearInProgressRef.current = false;
+      setClearing(false);
+      void fetchLogs();
     }
   }
 
@@ -53,13 +107,20 @@ export default function LogsPage() {
             />
             Auto-refresh
           </label>
-          <button
-            type="button"
-            onClick={() => void fetchLogs()}
-            className="rounded-lg bg-sienna px-4 py-2 text-sm font-semibold text-cream transition-colors hover:bg-sienna/90"
+          <Button
+            variant="outline"
+            disabled={logs.length === 0 || clearing}
+            onClick={() => setConfirmingClear(true)}
           >
-            Refresh Now
-          </button>
+            Clear logs
+          </Button>
+          <Button
+            type="button"
+            disabled={clearing}
+            onClick={() => void fetchLogs()}
+          >
+            Refresh now
+          </Button>
         </div>
       </header>
 
@@ -112,6 +173,17 @@ export default function LogsPage() {
           </div>
         </Container>
       )}
+
+      <ConfirmDialog
+        open={confirmingClear}
+        title="Clear logs?"
+        description="This permanently removes all auto-apply log entries. It cannot be undone."
+        confirmLabel={clearing ? "Clearing..." : "Clear logs"}
+        onConfirm={() => void clearLogs()}
+        onCancel={() => {
+          if (!clearing) setConfirmingClear(false);
+        }}
+      />
     </div>
   );
 }

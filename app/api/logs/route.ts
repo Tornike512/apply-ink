@@ -1,6 +1,12 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { getAuthenticatedSessionId } from "@/lib/user-session";
+import { clearLogFile } from "@/lib/server-logs";
+import {
+  getAuthenticatedSessionId,
+  isLocalRequest,
+  isTrustedMutation,
+  untrustedMutationResponse,
+} from "@/lib/user-session";
 
 export const runtime = "nodejs";
 
@@ -30,5 +36,27 @@ export async function GET(request: Request) {
       { error: "Could not read logs" },
       { status: 500 }
     );
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!isTrustedMutation(request)) return untrustedMutationResponse();
+  const sessionId = await getAuthenticatedSessionId(request);
+  if (!sessionId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!isLocalRequest(request)) {
+    return Response.json(
+      { error: "Logs can only be cleared from the local dashboard." },
+      { status: 403 }
+    );
+  }
+
+  try {
+    clearLogFile();
+    return Response.json({ logs: [] });
+  } catch (error) {
+    console.error("Error clearing logs:", error);
+    return Response.json({ error: "Could not clear logs" }, { status: 500 });
   }
 }

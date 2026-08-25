@@ -1,6 +1,6 @@
 import "server-only";
 
-import { appendFileSync, existsSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, truncateSync } from "node:fs";
 import path from "node:path";
 
 const LOG_DIR = path.join(process.cwd(), "data", "logs");
@@ -19,5 +19,11 @@ export function logToFile(message: string) {
     appendFileSync(LOG_FILE, logLine, "utf-8");
   } catch (error) {
     console.error("Failed to write to log file:", error);
+  }
+}
+
+export function clearLogFile() {
+  if (existsSync(LOG_FILE)) {
+    truncateSync(LOG_FILE, 0);
   }
 }
