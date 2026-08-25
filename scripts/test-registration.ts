@@ -718,52 +718,15 @@ async function main() {
     await page.getByRole("searchbox", { name: "Search jobs" }).fill("");
     await page.waitForTimeout(450);
 
-    let roleRequestResolved = false;
-    const roleRequest = page
-      .waitForRequest((request) => {
-        const url = new URL(request.url());
-        return (
-          url.pathname === "/api/jobs" &&
-          url.searchParams.get("role") === "frontend"
-        );
-      })
-      .then((request) => {
-        roleRequestResolved = true;
-        return request;
-      });
-    await page.getByRole("combobox", { name: "Role" }).click();
-    const roleListbox = page.getByRole("listbox", { name: "Role" });
-    await page.waitForFunction(() =>
-      document
-        .querySelector('[role="listbox"][aria-label="Role"]')
-        ?.classList.contains("opacity-100")
-    );
-    await roleListbox.getByRole("option", { name: "Frontend", exact: true }).click();
-    await page.waitForFunction(() =>
-      document
-        .querySelector('[role="listbox"][aria-label="Role"]')
-        ?.classList.contains("opacity-0")
-    );
-    if (roleRequestResolved) {
-      throw new Error("Filter update interrupted the dropdown close animation.");
-    }
-    await roleListbox.waitFor({ state: "detached" });
-    await roleRequest;
-
-    const locationRequest = page.waitForRequest((request) => {
+    const salaryRequest = page.waitForRequest((request) => {
       const url = new URL(request.url());
-      return url.pathname === "/api/jobs" && url.searchParams.get("location") === "europe";
+      return (
+        url.pathname === "/api/jobs" &&
+        url.searchParams.get("minSalary") === "104000" &&
+        url.searchParams.get("maxSalary") === "156000"
+      );
     });
-    await page.getByRole("combobox", { name: "Location" }).click();
-    await page
-      .getByRole("listbox", { name: "Location" })
-      .getByRole("option", { name: "Europe", exact: true })
-      .click();
-    await locationRequest;
-
-    await page.getByRole("button", { name: "Salary" }).click();
-    const salaryDialog = page.getByRole("dialog", { name: "Salary range" });
-    await salaryDialog.waitFor();
+    const salaryStartedAt = Date.now();
     await page
       .getByRole("spinbutton", { name: "Minimum hourly salary" })
       .fill("50");
@@ -783,37 +746,44 @@ async function main() {
     ) {
       throw new Error("Salary rates did not stay synchronized.");
     }
-    const salaryRequest = page.waitForRequest((request) => {
-      const url = new URL(request.url());
-      return (
-        url.pathname === "/api/jobs" &&
-        url.searchParams.get("minSalary") === "104000" &&
-        url.searchParams.get("maxSalary") === "156000"
-      );
-    });
-    await salaryDialog
-      .getByRole("button", { name: /^(?:Select|Use salary range)$/ })
-      .click();
     await salaryRequest;
-    await page.getByRole("button", { name: "Salary", exact: true }).first().click();
-    await page
-      .getByRole("spinbutton", { name: "Minimum hourly salary" })
-      .fill("100");
-    await salaryDialog.getByRole("button", { name: "Cancel" }).click();
-    if (!(await page.getByRole("button", { name: "Salary", exact: true }).first().textContent())?.includes("$104k - $156k")) {
-      throw new Error("Cancel changed the selected salary range.");
+    if (Date.now() - salaryStartedAt < 300) {
+      throw new Error("Salary filter request was not debounced.");
     }
 
-    await page.getByText("More filters", { exact: true }).waitFor();
-    const postedRequest = page.waitForRequest((request) => {
-      const url = new URL(request.url());
-      return url.pathname === "/api/jobs" && url.searchParams.get("postedWithinDays") === "7";
-    });
+    let postedRequestResolved = false;
+    const postedRequest = page
+      .waitForRequest((request) => {
+        const url = new URL(request.url());
+        return (
+          url.pathname === "/api/jobs" &&
+          url.searchParams.get("postedWithinDays") === "7"
+        );
+      })
+      .then((request) => {
+        postedRequestResolved = true;
+        return request;
+      });
     await page.getByRole("combobox", { name: "Posted within" }).click();
+    const postedListbox = page.getByRole("listbox", { name: "Posted within" });
+    await page.waitForFunction(() =>
+      document
+        .querySelector('[role="listbox"][aria-label="Posted within"]')
+        ?.classList.contains("opacity-100")
+    );
     await page
       .getByRole("listbox", { name: "Posted within" })
       .getByRole("option", { name: "Past week", exact: true })
       .click();
+    await page.waitForFunction(() =>
+      document
+        .querySelector('[role="listbox"][aria-label="Posted within"]')
+        ?.classList.contains("opacity-0")
+    );
+    if (postedRequestResolved) {
+      throw new Error("Filter update interrupted the dropdown close animation.");
+    }
+    await postedListbox.waitFor({ state: "detached" });
     await postedRequest;
     const matchRequest = page.waitForRequest((request) => {
       const url = new URL(request.url());
@@ -825,16 +795,28 @@ async function main() {
       .getByRole("option", { name: "90%+ match", exact: true })
       .click();
     await matchRequest;
-    await page.getByRole("button", { name: "Clear filters" }).click();
+    await page.getByRole("button", { name: "Clear all filters" }).click();
     if (
-      !(await page.getByRole("combobox", { name: "Role" }).textContent())?.includes(
-        "All roles"
-      ) ||
+      (await page
+        .getByRole("spinbutton", { name: "Minimum hourly salary" })
+        .inputValue()) !== "" ||
+      (await page
+        .getByRole("spinbutton", { name: "Maximum hourly salary" })
+        .inputValue()) !== "" ||
       !(await page
-        .getByRole("combobox", { name: "Location" })
-        .textContent())?.includes("Worldwide jobs")
+        .getByRole("combobox", { name: "Posted within" })
+        .textContent())?.includes("Any time") ||
+      !(await page
+        .getByRole("combobox", { name: "Minimum match" })
+        .textContent())?.includes("Any match")
     ) {
-      throw new Error("Clear filters did not reset the dropdowns.");
+      throw new Error("Clear all filters did not reset the filter controls.");
+    }
+    if (
+      (await page.getByRole("combobox", { name: "Role" }).count()) !== 0 ||
+      (await page.getByRole("combobox", { name: "Location" }).count()) !== 0
+    ) {
+      throw new Error("Legacy role or location filters are still visible.");
     }
     if ((await page.locator("select").count()) !== 0) {
       throw new Error("A native select remained after the dropdown migration.");
@@ -904,13 +886,13 @@ async function main() {
         outerDashboardScrollbars: true,
         debouncedJobSearch: true,
         workingJobFilters: true,
-        worldwideJobsDefault: true,
+        defaultJobFilters: true,
         animatedDropdowns: true,
         smoothDropdownClose: true,
         nativeSelectsRemoved: true,
-        salaryRangePopup: true,
+        inlineSalaryRange: true,
         linkedSalaryPeriods: true,
-        persistentMoreFilters: true,
+        clearAllFilters: true,
         animatedJobDrawer: true,
         jobDrawerBackdrop: true,
         messagesRoute: true,

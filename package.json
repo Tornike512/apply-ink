@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "prepare": "node scripts/install-git-hooks.mjs",
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node init && next dev",
+    "build": "node init && next build",
+    "start": "node init && next start",
     "lint": "eslint",
     "db:check": "node scripts/check-postgres.mjs",
     "db:migrate:sqlite": "node scripts/migrate-sqlite-to-postgres.mjs",
