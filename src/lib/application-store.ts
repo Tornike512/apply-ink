@@ -31,6 +31,7 @@ type ApplicationRow = {
   submitted_at: string | number | null;
   needs_user_reason: string | null;
   tailored_resume_file_name: string | null;
+  message_dismissed_at: string | number | null;
 };
 
 type ProfileRow = {
@@ -83,6 +84,7 @@ function mapApplication(row: ApplicationRow): Application {
     submittedAt: numberValue(row.submitted_at),
     needsUserReason: row.needs_user_reason,
     tailoredResumeFileName: row.tailored_resume_file_name,
+    messageDismissedAt: numberValue(row.message_dismissed_at),
   };
 }
 
@@ -404,7 +406,8 @@ export async function saveApplication(input: {
       tailored_resume_file_name = COALESCE(
         EXCLUDED.tailored_resume_file_name,
         user_applications.tailored_resume_file_name
-      )
+      ),
+      message_dismissed_at = NULL
     RETURNING *`,
     [
       id,
@@ -432,7 +435,8 @@ export async function markApplicationSubmitted(
   const result = await postgresQuery<ApplicationRow>(
     `UPDATE user_applications
      SET status = 'submitted', needs_user_reason = NULL,
-         updated_at = $1, submitted_at = COALESCE(submitted_at, $1)
+         updated_at = $1, submitted_at = COALESCE(submitted_at, $1),
+         message_dismissed_at = NULL
      WHERE session_id = $2 AND id = $3
      RETURNING *`,
     [now, sessionId, id]
@@ -449,6 +453,28 @@ export async function deleteApplication(
     [sessionId, id]
   );
   return (result.rowCount ?? 0) > 0;
+}
+
+export async function dismissApplicationsByStatus(
+  sessionId: string,
+  statuses: readonly ApplicationStatus[]
+): Promise<{ dismissedAt: number; dismissedIds: string[] }> {
+  const dismissedAt = Date.now();
+  if (statuses.length === 0) return { dismissedAt, dismissedIds: [] };
+
+  const result = await postgresQuery<{ id: string }>(
+    `UPDATE user_applications
+     SET message_dismissed_at = $1
+     WHERE session_id = $2
+       AND status = ANY($3::text[])
+       AND message_dismissed_at IS NULL
+     RETURNING id`,
+    [dismissedAt, sessionId, statuses]
+  );
+  return {
+    dismissedAt,
+    dismissedIds: result.rows.map((row) => row.id),
+  };
 }
 
 export async function claimDailyApiAction(

@@ -86,8 +86,12 @@ CREATE TABLE IF NOT EXISTS user_applications (
   updated_at BIGINT NOT NULL,
   submitted_at BIGINT,
   tailored_resume_file_name TEXT,
+  message_dismissed_at BIGINT,
   UNIQUE (session_id, job_id)
 );
+
+ALTER TABLE user_applications
+  ADD COLUMN IF NOT EXISTS message_dismissed_at BIGINT;
 
 CREATE INDEX IF NOT EXISTS user_applications_session_status_idx
 ON user_applications (session_id, status, updated_at DESC);

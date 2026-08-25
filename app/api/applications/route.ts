@@ -1,6 +1,7 @@
 import {
   claimDailyApiAction,
   deleteApplication,
+  dismissApplicationsByStatus,
   getApplicationById,
   getApplicationByJobId,
   getCandidateProfile,
@@ -330,7 +331,22 @@ export async function PATCH(request: Request) {
   try {
     const sessionId = await getAuthenticatedSessionId(request);
     if (!sessionId) return unauthenticatedResponse();
-    const body = (await request.json()) as { id?: unknown; status?: unknown };
+    const body = (await request.json()) as {
+      id?: unknown;
+      status?: unknown;
+      messageStatus?: unknown;
+    };
+    if (body.messageStatus !== undefined) {
+      if (body.messageStatus !== "needs_user" && body.messageStatus !== "submitted") {
+        return Response.json(
+          { error: "Could not identify which messages to clear. Refresh and try again." },
+          { status: 400 }
+        );
+      }
+      return Response.json(
+        await dismissApplicationsByStatus(sessionId, [body.messageStatus])
+      );
+    }
     if (typeof body.id !== "string" || body.status !== "submitted") {
       return Response.json({ error: "Could not mark this application as submitted. Refresh and try again." }, { status: 400 });
     }

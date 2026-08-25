@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   claimDailyApiAction,
   deleteApplication,
+  dismissApplicationsByStatus,
   getCandidateProfile,
   listApplications,
   markApplicationSubmitted,
@@ -88,6 +89,51 @@ try {
     "submitted"
   );
 
+  const needsUserApplication = await saveApplication({
+    sessionId,
+    job: { ...job, id: `${job.id}-needs-user` },
+    status: "needs_user",
+    method: "assisted",
+    via: "manual",
+  });
+  const failedApplication = await saveApplication({
+    sessionId,
+    job: { ...job, id: `${job.id}-failed` },
+    status: "failed",
+    method: "assisted",
+    via: "manual",
+  });
+  const dismissed = await dismissApplicationsByStatus(sessionId, [
+    "needs_user",
+    "submitted",
+  ]);
+  assert.deepEqual(
+    dismissed.dismissedIds.sort(),
+    [application.id, needsUserApplication.id].sort()
+  );
+  const dismissedApplications = await listApplications(sessionId);
+  assert.equal(dismissedApplications.length, 3);
+  assert.equal(
+    dismissedApplications.find((item) => item.id === application.id)
+      ?.messageDismissedAt,
+    dismissed.dismissedAt
+  );
+  assert.equal(
+    dismissedApplications.find((item) => item.id === needsUserApplication.id)
+      ?.messageDismissedAt,
+    dismissed.dismissedAt
+  );
+  assert.equal(
+    dismissedApplications.find((item) => item.id === failedApplication.id)
+      ?.messageDismissedAt,
+    null
+  );
+  assert.equal(
+    (await markApplicationSubmitted(sessionId, needsUserApplication.id))
+      ?.messageDismissedAt,
+    null
+  );
+
   assert.equal(await claimDailyApiAction(sessionId, "test", 2), true);
   assert.equal(await claimDailyApiAction(sessionId, "test", 2), true);
   assert.equal(await claimDailyApiAction(sessionId, "test", 2), false);
@@ -103,11 +149,12 @@ try {
   assert.deepEqual((await readTailoredResume(resumeKey))?.data, pdfData);
   assert.ok(await readStore(), "Migrated PostgreSQL job store should be readable");
 
-  assert.equal(await deleteApplication(sessionId, application.id), true);
+  assert.equal(await deleteApplication(sessionId, failedApplication.id), true);
   process.stdout.write(
     `${JSON.stringify({
       profileBytes: saved.resumeData?.length,
       applicationRoundTrip: true,
+      messagesCleared: true,
       quotaAtomic: true,
       sharedCache: true,
       tailoredResumeBytes: pdfData.length,

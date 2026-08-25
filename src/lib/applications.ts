@@ -14,6 +14,7 @@ export type Application = {
   submittedAt: number | null;
   needsUserReason: string | null;
   tailoredResumeFileName: string | null;
+  messageDismissedAt: number | null;
 };
 export type ApplicationAttempt = {
   application: Application;
